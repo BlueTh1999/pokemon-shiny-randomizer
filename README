@@ -1,0 +1,98 @@
+# Pokémon Shiny Hunt Randomizer
+
+A simple browser-based randomizer for choosing Pokémon to shiny hunt across a collection of Pokémon games.
+
+The project is designed to avoid duplicate species and only include Pokémon that can actually be shiny hunted in at least one supported game.
+
+## Supported Games
+
+- Pokémon Sword & Shield + DLC
+- Pokémon Legends: Arceus
+- Pokémon Scarlet & Violet + DLC
+- Pokémon Legends: Z-A + Mega Dimension
+- Pokémon FireRed — Nintendo Switch version
+
+## Features
+
+- Randomly selects a shiny-hunt target
+- Uses one duplicate-free master list of Pokémon species
+- Lets you enable or disable individual games
+- Avoids rerolling the same Pokémon until the roll history is reset
+- Displays the Pokémon's:
+  - Hunt number
+  - Name
+  - National Pokédex number
+  - Games in which it can be shiny hunted
+  - General hunting method
+- Displays:
+  - Animated normal sprites from Pokémon Showdown
+  - Shiny comparison sprites from Pokémon Database
+- Remembers downloaded Pokédex data locally in the browser
+
+## How the List Works
+
+Pokémon are added to the master list in this order:
+
+1. Sword & Shield
+2. Legends: Arceus
+3. Scarlet & Violet
+4. Legends: Z-A
+5. FireRed
+
+If a Pokémon already exists in the list, it is not added again.
+
+For example, if Pikachu is available in several supported games, Pikachu still receives only one hunt number.
+
+The program also attempts to account for shiny-locked Pokémon and unusual hunt methods such as:
+
+- Dynamax Adventures
+- Mass Outbreaks
+- Space-Time Distortions
+- Legends: Z-A Special Scans
+- Static legendary encounters
+- FireRed Navel Rock and Birth Island encounters
+
+## Using the Randomizer
+
+Open the hosted webpage and select the games you want included.
+
+Press **Randomize!** to choose a Pokémon.
+
+The result will show which selected games can be used to hunt that Pokémon and a general description of how it can be obtained.
+
+You can disable:
+
+> Do not roll the same Pokémon twice until reset
+
+if you want completely unrestricted random rolls.
+
+## Data Sources
+
+This project uses data and images from several external Pokémon resources:
+
+- [PokéAPI](https://pokeapi.co/) — Pokédex and species data
+- [Pokémon Showdown](https://pokemonshowdown.com/) — animated Pokémon sprites
+- [Pokémon Database](https://pokemondb.net/) — shiny comparison sprites
+
+Pokémon and all related names, characters, and imagery are trademarks of Nintendo, Game Freak, Creatures Inc., and The Pokémon Company.
+
+This is an unofficial fan-made tool and is not affiliated with or endorsed by those companies.
+
+## Project Status
+
+This project is currently a small personal utility and is still being refined.
+
+Planned or possible improvements include:
+
+- Tracking completed shiny hunts
+- Permanently excluding already-owned shinies
+- More detailed hunting locations and methods
+- Type information
+- Better handling of alternate forms
+- Additional games
+
+## Hosting
+
+The project is built entirely with HTML, CSS, and JavaScript and is intended to be hosted using GitHub Pages.
+
+No installation or server backend is required.
