@@ -1,0 +1,988 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pokémon Shiny Hunt Randomizer</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #17191f;
+    --panel: #232630;
+    --panel2: #2d313d;
+    --text: #f5f7fb;
+    --muted: #aeb6c4;
+    --accent: #f4cf4a;
+    --accent2: #73a9ff;
+    --border: #404655;
+    --danger: #ff7b7b;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+
+  .app {
+    width: min(760px, 100%);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.28);
+  }
+
+  h1 {
+    margin: 0 0 6px;
+    font-size: 26px;
+  }
+
+  .sub {
+    margin: 0 0 18px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+
+  .status {
+    padding: 10px 12px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    color: var(--muted);
+    margin-bottom: 16px;
+    min-height: 42px;
+  }
+
+  .result {
+    background: #111319;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 18px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  .hunt-number {
+    color: var(--accent);
+    font-weight: 800;
+    font-size: 42px;
+    line-height: 1;
+    margin-bottom: 10px;
+  }
+
+  .pokemon-name {
+    font-size: 31px;
+    font-weight: 700;
+  }
+
+  .sprite-area {
+    min-height: 170px;
+    display: grid;
+    place-items: center;
+    margin: 14px 0 8px;
+  }
+
+  .sprite-compare {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    align-items: stretch;
+  }
+
+  .sprite-card {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 8px 12px;
+    display: grid;
+    justify-items: center;
+    align-content: start;
+    min-height: 170px;
+  }
+
+  .sprite-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent2);
+    margin-bottom: 8px;
+    letter-spacing: 0.2px;
+  }
+
+  .pokemon-sprite,
+  .shiny-sprite {
+    display: none;
+    max-width: 180px;
+    max-height: 130px;
+    width: auto;
+    height: auto;
+    image-rendering: auto;
+  }
+
+  .sprite-message {
+    display: none;
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.35;
+    margin-top: 4px;
+  }
+
+  .details {
+    color: var(--muted);
+    margin-top: 8px;
+    line-height: 1.45;
+  }
+
+  .hunt-method {
+    color: var(--text);
+    margin-top: 8px;
+    line-height: 1.45;
+    font-size: 14px;
+  }
+
+  .hunt-method strong {
+    color: var(--accent2);
+  }
+
+  .buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+
+  button {
+    border: 0;
+    border-radius: 9px;
+    padding: 12px 16px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  #randomizeBtn {
+    background: var(--accent);
+    color: #191919;
+    flex: 1;
+    min-width: 170px;
+  }
+
+  #resetBtn, #reloadBtn {
+    background: var(--panel2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+  }
+
+  .section-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 4px 0 10px;
+  }
+
+  .dex-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    margin-bottom: 14px;
+  }
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 10px;
+    cursor: pointer;
+  }
+
+  input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--accent2);
+  }
+
+  .options {
+    margin-top: 4px;
+    margin-bottom: 16px;
+  }
+
+  .history {
+    margin-top: 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+
+  .history-list {
+    margin: 8px 0 0;
+    padding-left: 22px;
+    color: var(--muted);
+    max-height: 150px;
+    overflow-y: auto;
+  }
+
+  .history-list li { margin: 5px 0; }
+
+  .note {
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .error { color: var(--danger); }
+
+  @media (max-width: 600px) {
+    .dex-grid { grid-template-columns: 1fr; }
+    .hunt-number { font-size: 35px; }
+    .pokemon-name { font-size: 26px; }
+    .sprite-compare { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+
+<body>
+<main class="app">
+  <h1>Pokémon Shiny Hunt Randomizer</h1>
+  <p class="sub">
+    Builds one ascending, duplicate-free list of Pokémon you can actually shiny hunt,
+    ordered Sword/Shield → Legends: Arceus → Scarlet/Violet → Legends: Z-A → FireRed,
+    with a normal animated sprite and a shiny comparison sprite.
+  </p>
+
+  <div id="status" class="status">Loading Pokédex data…</div>
+
+  <section class="result">
+    <div id="huntNumber" class="hunt-number">#---</div>
+    <div id="pokemonName" class="pokemon-name">Press Randomize</div>
+
+    <div class="sprite-area">
+      <div class="sprite-compare">
+        <div class="sprite-card">
+          <div class="sprite-label">Normal</div>
+          <img id="pokemonSprite" class="pokemon-sprite" alt="">
+          <div id="spriteMessage" class="sprite-message"></div>
+        </div>
+
+        <div class="sprite-card">
+          <div class="sprite-label">Shiny</div>
+          <img id="shinySprite" class="shiny-sprite" alt="">
+          <div id="shinySpriteMessage" class="sprite-message"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="details" class="details">Your shiny target will appear here.</div>
+    <div id="huntMethod" class="hunt-method"></div>
+  </section>
+
+  <div class="buttons">
+    <button id="randomizeBtn" disabled>Randomize!</button>
+    <button id="resetBtn">Reset Rolls</button>
+    <button id="reloadBtn">Refresh Dex Data</button>
+  </div>
+
+  <div class="section-title">Include these games</div>
+  <div id="dexGrid" class="dex-grid"></div>
+
+  <div class="options">
+    <label>
+      <input id="noRepeats" type="checkbox" checked>
+      Do not roll the same Pokémon twice until reset
+    </label>
+  </div>
+
+  <div class="history">
+    <div class="section-title">Recent rolls</div>
+    <ol id="historyList" class="history-list"></ol>
+  </div>
+
+  <p class="note">
+     Randomizer by Blue<33 Currently supports Fire Red, Sword & Shield, Scarlet & Violet, Legends: Arceus, and Legends: Z-A
+  </p>
+</main>
+
+<script>
+const GAME_SOURCES = [
+  {
+    key: "swsh",
+    label: "Sword & Shield + DLC",
+    shortLabel: "Sword/Shield",
+    dexes: ["galar", "isle-of-armor", "crown-tundra"]
+  },
+  {
+    key: "pla",
+    label: "Legends: Arceus",
+    shortLabel: "Legends: Arceus",
+    dexes: ["hisui"]
+  },
+  {
+    key: "sv",
+    label: "Scarlet & Violet + DLC",
+    shortLabel: "Scarlet/Violet",
+    dexes: ["paldea", "kitakami", "blueberry"]
+  },
+  {
+    key: "za",
+    label: "Legends: Z-A + Mega Dimension",
+    shortLabel: "Legends: Z-A",
+    dexes: ["lumiose-city", "hyperspace"]
+  },
+  {
+    key: "firered",
+    label: "FireRed — Switch",
+    shortLabel: "FireRed",
+    dexes: ["kanto"]
+  }
+];
+
+const CACHE_KEY = "pokemonShinyRandomizerHuntableCache_v3";
+const SHOWDOWN_SPRITE_BASE = "https://play.pokemonshowdown.com/sprites/ani/";
+const POKEMONDB_SHINY_SPRITE_BASE = "https://img.pokemondb.net/sprites/home/shiny/";
+
+// Species IDs whose only native encounter/source in that game is shiny-locked.
+// Regular breedable starters are intentionally NOT listed here.
+const LOCKED_BY_GAME = {
+  swsh: new Set([
+    647,       // Keldeo
+    772, 773,  // Type: Null, Silvally
+    789, 790,  // Cosmog, Cosmoem
+    803, 804,  // Poipole, Naganadel
+    888, 889, 890, // Zacian, Zamazenta, Eternatus
+    891, 892,  // Kubfu, Urshifu
+    896, 897, 898 // Glastrier, Spectrier, Calyrex
+  ]),
+
+  pla: new Set([
+    480, 481, 482, // Uxie, Mesprit, Azelf
+    483, 484,      // Dialga, Palkia
+    485, 486, 487, 488, // Heatran, Regigigas, Giratina, Cresselia
+    489, 490,      // Phione, Manaphy
+    491, 492, 493, // Darkrai, Shaymin, Arceus
+    641, 642, 645, // Tornadus, Thundurus, Landorus
+    905            // Enamorus
+  ]),
+
+  sv: new Set([
+    901,       // Ursaluna: only Bloodmoon Ursaluna is native, and it is locked
+    999, 1000, // Gimmighoul/Gholdengo: permanent encounters are shiny-locked
+    1001, 1002, 1003, 1004, // Treasures of Ruin
+    1007, 1008, // Koraidon, Miraidon
+    1009, 1010, // Walking Wake, Iron Leaves
+    1014, 1015, 1016, // Loyal Three
+    1017,       // Ogerpon
+    1020, 1021, 1022, 1023, // DLC Paradox legendaries
+    1024, 1025  // Terapagos, Pecharunt
+  ]),
+
+  za: new Set([
+    150,             // Mewtwo
+    382, 383, 384,   // Kyogre, Groudon, Rayquaza
+    485, 491,        // Heatran, Darkrai
+    647, 648, 649,   // Keldeo, Meloetta, Genesect
+    716, 717, 718,   // Xerneas, Yveltal, Zygarde
+    719, 720, 721,   // Diancie, Hoopa, Volcanion
+    801, 802,        // Magearna, Marshadow
+    807, 808, 809    // Zeraora, Meltan, Melmetal
+  ]),
+
+  // FireRed has no normal shiny-lock system. These are unavailable specifically
+  // in FireRed (rather than LeafGreen), plus Mew which has no native Switch hunt.
+  firered: new Set([
+    27, 28,       // Sandshrew line
+    37, 38,       // Vulpix line
+    69, 70, 71,   // Bellsprout line
+    79, 80,       // Slowpoke, Slowbro
+    120, 121,     // Staryu line
+    126,          // Magmar
+    127,          // Pinsir
+    151           // Mew
+  ])
+};
+
+// Non-regional-dex hunts that are permanently shiny eligible.
+// Sword/Shield additions are primarily Dynamax Adventures plus Regigigas.
+const EXTRA_HUNTABLE_BY_GAME = {
+  swsh: new Set([
+    144,145,146,150,
+    243,244,245,249,250,
+    380,381,382,383,384,
+    480,481,482,483,484,485,486,487,488,
+    641,642,643,644,645,646,
+    716,717,718,
+    785,786,787,788,
+    791,792,
+    793,794,795,796,797,798,799,800,
+    805,806
+  ]),
+
+  pla: new Set([]),
+
+  sv: new Set([]),
+
+  // These five can specifically appear shiny in Z-A's Special Scan zones.
+  za: new Set([380,381,638,639,640]),
+
+  // FireRed Switch: native postgame Johto access plus restored ticket encounters.
+  firered: new Set([
+    161,162,165,166,167,168,169,
+    172,173,174,175,176,177,178,182,186,
+    187,188,189,193,194,195,198,201,202,206,208,
+    211,212,214,218,219,220,221,225,227,230,
+    231,232,233,236,237,238,239,242,246,247,248,
+    243,244,245,249,250,386
+  ])
+};
+
+// Slugs for species that may be added through an exception rather than a regional dex.
+const MANUAL_SPECIES = {
+  144:"articuno",145:"zapdos",146:"moltres",150:"mewtwo",
+  161:"sentret",162:"furret",165:"ledyba",166:"ledian",167:"spinarak",168:"ariados",
+  169:"crobat",172:"pichu",173:"cleffa",174:"igglybuff",175:"togepi",176:"togetic",
+  177:"natu",178:"xatu",182:"bellossom",186:"politoed",187:"hoppip",188:"skiploom",
+  189:"jumpluff",193:"yanma",194:"wooper",195:"quagsire",198:"murkrow",201:"unown",
+  202:"wobbuffet",206:"dunsparce",208:"steelix",211:"qwilfish",212:"scizor",
+  214:"heracross",218:"slugma",219:"magcargo",220:"swinub",221:"piloswine",
+  225:"delibird",227:"skarmory",230:"kingdra",231:"phanpy",232:"donphan",
+  233:"porygon2",236:"tyrogue",237:"hitmontop",238:"smoochum",239:"elekid",
+  242:"blissey",243:"raikou",244:"entei",245:"suicune",246:"larvitar",
+  247:"pupitar",248:"tyranitar",249:"lugia",250:"ho-oh",
+  380:"latias",381:"latios",382:"kyogre",383:"groudon",384:"rayquaza",386:"deoxys",
+  480:"uxie",481:"mesprit",482:"azelf",483:"dialga",484:"palkia",485:"heatran",
+  486:"regigigas",487:"giratina",488:"cresselia",
+  638:"cobalion",639:"terrakion",640:"virizion",641:"tornadus",642:"thundurus",
+  643:"reshiram",644:"zekrom",645:"landorus",646:"kyurem",
+  716:"xerneas",717:"yveltal",718:"zygarde",
+  785:"tapu-koko",786:"tapu-lele",787:"tapu-bulu",788:"tapu-fini",
+  791:"solgaleo",792:"lunala",793:"nihilego",794:"buzzwole",795:"pheromosa",
+  796:"xurkitree",797:"celesteela",798:"kartana",799:"guzzlord",800:"necrozma",
+  805:"stakataka",806:"blacephalon"
+};
+
+let masterPool = [];
+let gamePools = {};
+let usedSpecies = new Set();
+let history = [];
+
+const statusEl = document.getElementById("status");
+const randomizeBtn = document.getElementById("randomizeBtn");
+const resetBtn = document.getElementById("resetBtn");
+const reloadBtn = document.getElementById("reloadBtn");
+const huntNumberEl = document.getElementById("huntNumber");
+const pokemonNameEl = document.getElementById("pokemonName");
+const detailsEl = document.getElementById("details");
+const huntMethodEl = document.getElementById("huntMethod");
+const pokemonSpriteEl = document.getElementById("pokemonSprite");
+const spriteMessageEl = document.getElementById("spriteMessage");
+const shinySpriteEl = document.getElementById("shinySprite");
+const shinySpriteMessageEl = document.getElementById("shinySpriteMessage");
+const dexGrid = document.getElementById("dexGrid");
+const historyList = document.getElementById("historyList");
+const noRepeatsEl = document.getElementById("noRepeats");
+
+const SPECIAL_NAMES = {
+  "nidoran-f": "Nidoran♀",
+  "nidoran-m": "Nidoran♂",
+  "farfetchd": "Farfetch'd",
+  "sirfetchd": "Sirfetch'd",
+  "mr-mime": "Mr. Mime",
+  "mime-jr": "Mime Jr.",
+  "mr-rime": "Mr. Rime",
+  "type-null": "Type: Null",
+  "flabebe": "Flabébé",
+  "porygon-z": "Porygon-Z",
+  "ho-oh": "Ho-Oh",
+  "jangmo-o": "Jangmo-o",
+  "hakamo-o": "Hakamo-o",
+  "kommo-o": "Kommo-o",
+  "wo-chien": "Wo-Chien",
+  "chien-pao": "Chien-Pao",
+  "ting-lu": "Ting-Lu",
+  "chi-yu": "Chi-Yu",
+  "tapu-koko": "Tapu Koko",
+  "tapu-lele": "Tapu Lele",
+  "tapu-bulu": "Tapu Bulu",
+  "tapu-fini": "Tapu Fini"
+};
+
+function displayName(slug) {
+  if (SPECIAL_NAMES[slug]) return SPECIAL_NAMES[slug];
+  return slug
+    .split("-")
+    .map(part => part ? part[0].toUpperCase() + part.slice(1) : part)
+    .join(" ");
+}
+
+function nationalDexFromUrl(url) {
+  const match = url.match(/pokemon-species\/(\d+)\/?$/);
+  return match ? Number(match[1]) : null;
+}
+
+function showdownSpriteId(speciesSlug) {
+  return speciesSlug.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function pokemonDbSpriteId(speciesSlug) {
+  // Pokémon Database shiny-dex image URLs generally use the base species slug.
+  return speciesSlug.toLowerCase();
+}
+
+function clearSprite() {
+  pokemonSpriteEl.removeAttribute("src");
+  pokemonSpriteEl.alt = "";
+  pokemonSpriteEl.style.display = "none";
+  spriteMessageEl.style.display = "none";
+  spriteMessageEl.textContent = "";
+
+  shinySpriteEl.removeAttribute("src");
+  shinySpriteEl.alt = "";
+  shinySpriteEl.style.display = "none";
+  shinySpriteMessageEl.style.display = "none";
+  shinySpriteMessageEl.textContent = "";
+}
+
+function showSprite(pokemon) {
+  clearSprite();
+
+  const normalSpriteId = showdownSpriteId(pokemon.speciesSlug);
+  const normalSpriteUrl = `${SHOWDOWN_SPRITE_BASE}${normalSpriteId}.gif`;
+
+  pokemonSpriteEl.alt = `${pokemon.name} animated sprite`;
+  pokemonSpriteEl.onload = () => {
+    pokemonSpriteEl.style.display = "block";
+    spriteMessageEl.style.display = "none";
+  };
+
+  pokemonSpriteEl.onerror = () => {
+    pokemonSpriteEl.style.display = "none";
+    spriteMessageEl.textContent = "Animated sprite unavailable for this Pokémon.";
+    spriteMessageEl.style.display = "block";
+  };
+
+  pokemonSpriteEl.src = normalSpriteUrl;
+
+  const shinySpriteId = pokemonDbSpriteId(pokemon.speciesSlug);
+  const shinySpriteUrl = `${POKEMONDB_SHINY_SPRITE_BASE}${shinySpriteId}.png`;
+
+  shinySpriteEl.alt = `${pokemon.name} shiny sprite`;
+  shinySpriteEl.onload = () => {
+    shinySpriteEl.style.display = "block";
+    shinySpriteMessageEl.style.display = "none";
+  };
+
+  shinySpriteEl.onerror = () => {
+    shinySpriteEl.style.display = "none";
+    shinySpriteMessageEl.textContent = "Shiny preview unavailable from Pokémon Database for this Pokémon.";
+    shinySpriteMessageEl.style.display = "block";
+  };
+
+  shinySpriteEl.src = shinySpriteUrl;
+}
+
+
+const ZA_SPECIAL_SCAN_SHINIES = new Set([380, 381, 638, 639, 640]);
+
+const FIRERED_NAVEL_ROCK = new Set([249, 250]);
+const FIRERED_BIRTH_ISLAND = new Set([386]);
+
+const FIRERED_POSTGAME_JOHTO = new Set([
+  161,162,165,166,167,168,169,
+  172,173,174,175,176,177,178,182,186,
+  187,188,189,193,194,195,198,201,202,206,208,
+  211,212,214,218,219,220,221,225,227,230,
+  231,232,233,236,237,238,239,242,246,247,248,
+  243,244,245
+]);
+
+function huntMethodForGame(gameKey, pokemon) {
+  const id = pokemon.nationalDex;
+
+  if (gameKey === "swsh") {
+    if (EXTRA_HUNTABLE_BY_GAME.swsh.has(id)) {
+      if (id === 486) {
+        return "Crown Tundra static encounter";
+      }
+      return "Dynamax Adventures";
+    }
+
+    return "Native encounter, breeding, or evolution";
+  }
+
+  if (gameKey === "pla") {
+    return "Native Hisui encounter, outbreak/distortion, or evolution";
+  }
+
+  if (gameKey === "sv") {
+    return "Native encounter, breeding, outbreak, or evolution";
+  }
+
+  if (gameKey === "za") {
+    if (ZA_SPECIAL_SCAN_SHINIES.has(id)) {
+      return "Special Scan — shiny-capable legendary encounter";
+    }
+
+    return "Native Lumiose/Hyperspace encounter or evolution";
+  }
+
+  if (gameKey === "firered") {
+    if (FIRERED_NAVEL_ROCK.has(id)) {
+      return "Navel Rock static encounter";
+    }
+
+    if (FIRERED_BIRTH_ISLAND.has(id)) {
+      return "Birth Island static encounter";
+    }
+
+    if (FIRERED_POSTGAME_JOHTO.has(id)) {
+      return "Sevii Islands/postgame encounter, breeding, or evolution";
+    }
+
+    return "Wild/static encounter, breeding, or evolution";
+  }
+
+  return "Native shiny-capable encounter";
+}
+
+function huntMethodsForPokemon(pokemon) {
+  const selected = selectedGameKeys();
+
+  return GAME_SOURCES
+    .filter(game => selected.has(game.key) && pokemon.games.includes(game.key))
+    .map(game => `${game.shortLabel}: ${huntMethodForGame(game.key, pokemon)}`);
+}
+
+function makeGameCheckboxes() {
+  dexGrid.innerHTML = "";
+
+  for (const game of GAME_SOURCES) {
+    const label = document.createElement("label");
+    label.innerHTML = `
+      <input type="checkbox" data-game-key="${game.key}" checked>
+      <span>${game.label}</span>
+    `;
+    dexGrid.appendChild(label);
+  }
+
+  dexGrid.addEventListener("change", updateStatus);
+}
+
+async function fetchDex(slug) {
+  const url = `https://pokeapi.co/api/v2/pokedex/${slug}/`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`${slug}: HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  return data.pokemon_entries.map(entry => ({
+    regionalNumber: entry.entry_number,
+    speciesSlug: entry.pokemon_species.name,
+    speciesUrl: entry.pokemon_species.url,
+    nationalDex: nationalDexFromUrl(entry.pokemon_species.url)
+  }));
+}
+
+function selectedGameKeys() {
+  return new Set(
+    [...document.querySelectorAll('input[data-game-key]:checked')]
+      .map(cb => cb.dataset.gameKey)
+  );
+}
+
+function buildPools(dexData) {
+  const speciesIndex = new Map();
+
+  // Index every species seen in any fetched Pokédex.
+  for (const entries of Object.values(dexData)) {
+    for (const entry of entries || []) {
+      if (!entry.nationalDex) continue;
+
+      if (!speciesIndex.has(entry.nationalDex)) {
+        speciesIndex.set(entry.nationalDex, {
+          nationalDex: entry.nationalDex,
+          speciesSlug: entry.speciesSlug,
+          name: displayName(entry.speciesSlug)
+        });
+      }
+    }
+  }
+
+  // Supply names for manually-added encounters not guaranteed to appear in
+  // one of the regional Pokédexes.
+  for (const [idText, slug] of Object.entries(MANUAL_SPECIES)) {
+    const id = Number(idText);
+    if (!speciesIndex.has(id)) {
+      speciesIndex.set(id, {
+        nationalDex: id,
+        speciesSlug: slug,
+        name: displayName(slug)
+      });
+    }
+  }
+
+  const pools = {};
+
+  for (const game of GAME_SOURCES) {
+    const ids = new Set();
+
+    for (const dexSlug of game.dexes) {
+      for (const entry of dexData[dexSlug] || []) {
+        if (entry.nationalDex) ids.add(entry.nationalDex);
+      }
+    }
+
+    for (const id of EXTRA_HUNTABLE_BY_GAME[game.key] || []) {
+      ids.add(id);
+    }
+
+    for (const id of LOCKED_BY_GAME[game.key] || []) {
+      ids.delete(id);
+    }
+
+    pools[game.key] = ids;
+  }
+
+  // Build one duplicate-free target list. New species are appended game-by-game,
+  // while species within a game's new additions are National-Dex ordered.
+  const seen = new Set();
+  const ordered = [];
+
+  for (const game of GAME_SOURCES) {
+    const ids = [...pools[game.key]].sort((a, b) => a - b);
+
+    for (const id of ids) {
+      if (seen.has(id)) continue;
+      const data = speciesIndex.get(id);
+      if (!data) continue;
+
+      seen.add(id);
+      ordered.push({
+        speciesKey: id,
+        nationalDex: id,
+        speciesSlug: data.speciesSlug,
+        name: data.name,
+        firstGame: game.key,
+        games: []
+      });
+    }
+  }
+
+  // Attach every selected-game source that can hunt each species.
+  for (const item of ordered) {
+    item.games = GAME_SOURCES
+      .filter(game => pools[game.key].has(item.nationalDex))
+      .map(game => game.key);
+  }
+
+  ordered.forEach((item, index) => {
+    item.huntNumber = index + 1;
+  });
+
+  gamePools = pools;
+  masterPool = ordered;
+}
+
+function currentPool() {
+  const selected = selectedGameKeys();
+
+  return masterPool.filter(p =>
+    p.games.some(gameKey => selected.has(gameKey))
+  );
+}
+
+function updateStatus(extra = "") {
+  if (!masterPool.length) return;
+
+  const pool = currentPool();
+  const selectedCount = selectedGameKeys().size;
+
+  statusEl.classList.remove("error");
+  statusEl.textContent =
+    `${masterPool.length} unique shiny-hunt targets loaded. ` +
+    `${pool.length} are eligible from ${selectedCount} selected game${selectedCount === 1 ? "" : "s"}.` +
+    (extra ? ` ${extra}` : "");
+
+  randomizeBtn.disabled = pool.length === 0;
+}
+
+function renderHistory() {
+  historyList.innerHTML = "";
+
+  for (const item of history.slice().reverse().slice(0, 20)) {
+    const li = document.createElement("li");
+    li.textContent =
+      `Hunt #${String(item.huntNumber).padStart(3, "0")} — ` +
+      `${item.name} / National #${String(item.nationalDex).padStart(4, "0")}`;
+    historyList.appendChild(li);
+  }
+}
+
+function chooseRandom(array) {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+function rollPokemon() {
+  const pool = currentPool();
+
+  if (!pool.length) {
+    statusEl.classList.add("error");
+    statusEl.textContent = "Select at least one game.";
+    return;
+  }
+
+  let eligible = pool;
+
+  if (noRepeatsEl.checked) {
+    eligible = pool.filter(p => !usedSpecies.has(p.speciesKey));
+
+    if (!eligible.length) {
+      usedSpecies.clear();
+      eligible = pool;
+      updateStatus("Every eligible Pokémon had been rolled, so the no-repeat list was reset.");
+    }
+  }
+
+  const result = chooseRandom(eligible);
+
+  if (noRepeatsEl.checked) {
+    usedSpecies.add(result.speciesKey);
+  }
+
+  history.push(result);
+
+  const selected = selectedGameKeys();
+  const availableIn = GAME_SOURCES
+    .filter(game => selected.has(game.key) && result.games.includes(game.key))
+    .map(game => game.shortLabel);
+
+  huntNumberEl.textContent = `#${String(result.huntNumber).padStart(3, "0")}`;
+  pokemonNameEl.textContent = result.name;
+  showSprite(result);
+
+  detailsEl.textContent =
+    `National Dex #${String(result.nationalDex).padStart(4, "0")} • ` +
+    `Shiny huntable in: ${availableIn.join(", ")}`;
+
+  const methods = huntMethodsForPokemon(result);
+  huntMethodEl.innerHTML =
+    `<strong>Why can I hunt this?</strong> ${methods.join(" • ")}`;
+
+  renderHistory();
+  updateStatus();
+}
+
+function resetRolls() {
+  usedSpecies.clear();
+  history = [];
+  renderHistory();
+
+  huntNumberEl.textContent = "#---";
+  pokemonNameEl.textContent = "Press Randomize";
+  detailsEl.textContent = "Your shiny target will appear here.";
+  huntMethodEl.textContent = "";
+  clearSprite();
+
+  if (masterPool.length) {
+    updateStatus("Roll history reset.");
+  }
+}
+
+async function loadDexData(forceRefresh = false) {
+  randomizeBtn.disabled = true;
+  statusEl.classList.remove("error");
+
+  if (!forceRefresh) {
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
+      if (cached && cached.dexData) {
+        buildPools(cached.dexData);
+
+        if (masterPool.length) {
+          updateStatus("Loaded from local cache.");
+          randomizeBtn.disabled = currentPool().length === 0;
+          return;
+        }
+      }
+    } catch {
+      // Broken/old cache: fetch fresh data.
+    }
+  }
+
+  const dexSlugs = [...new Set(GAME_SOURCES.flatMap(game => game.dexes))];
+  const dexData = {};
+  const failures = [];
+
+  for (let i = 0; i < dexSlugs.length; i++) {
+    const slug = dexSlugs[i];
+    statusEl.textContent = `Loading hunt data (${i + 1}/${dexSlugs.length}) — ${slug}…`;
+
+    try {
+      dexData[slug] = await fetchDex(slug);
+    } catch (err) {
+      console.error(err);
+      dexData[slug] = [];
+      failures.push(slug);
+    }
+  }
+
+  buildPools(dexData);
+
+  if (!masterPool.length) {
+    statusEl.classList.add("error");
+    statusEl.textContent =
+      "I couldn't load the hunt data. Check your internet connection, then press “Refresh Dex Data”.";
+    return;
+  }
+
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      savedAt: new Date().toISOString(),
+      dexData
+    }));
+  } catch {
+    // Cache failure is harmless.
+  }
+
+  if (failures.length) {
+    statusEl.classList.add("error");
+    statusEl.textContent =
+      `${masterPool.length} targets loaded, but these source dexes failed: ${failures.join(", ")}. ` +
+      `The randomizer can still run, but Refresh Dex Data is recommended.`;
+  } else {
+    updateStatus("Fresh hunt data downloaded and cached.");
+  }
+
+  randomizeBtn.disabled = currentPool().length === 0;
+}
+
+makeGameCheckboxes();
+
+randomizeBtn.addEventListener("click", rollPokemon);
+resetBtn.addEventListener("click", resetRolls);
+reloadBtn.addEventListener("click", async () => {
+  localStorage.removeItem(CACHE_KEY);
+  resetRolls();
+  await loadDexData(true);
+});
+
+loadDexData();
+</script>
+</body>
+</html>
