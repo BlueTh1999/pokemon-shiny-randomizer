@@ -411,6 +411,252 @@
     color: var(--danger);
   }
 
+
+  .binder-tab {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1100;
+    width: 44px;
+    height: 88px;
+    border-radius: 12px 0 0 12px;
+    background: var(--accent);
+    color: #111319;
+    border: 1px solid rgba(255,255,255,.16);
+    border-right: 0;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    font-size: 25px;
+    box-shadow: -5px 8px 22px rgba(0,0,0,.28);
+  }
+
+  .binder-tab-arrow {
+    display: inline-block;
+    transition: transform .2s ease;
+  }
+
+  body.binder-open .binder-tab-arrow {
+    transform: rotate(180deg);
+  }
+
+  .binder-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 1050;
+    width: min(500px, calc(100vw - 54px));
+    height: 100vh;
+    background: #1b1e25;
+    border-left: 1px solid var(--border);
+    box-shadow: -18px 0 45px rgba(0,0,0,.38);
+    transform: translateX(100%);
+    transition: transform .24s ease;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.binder-open .binder-drawer {
+    transform: translateX(0);
+  }
+
+  .binder-header {
+    padding: 18px 18px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex: 0 0 auto;
+  }
+
+  .binder-title {
+    margin: 0;
+    font-size: 22px;
+  }
+
+  .binder-count {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 5px;
+  }
+
+  .binder-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 11px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .binder-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .binder-legend-dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: #0f1116;
+  }
+
+  .binder-legend-dot.caught {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .binder-legend-dot.current {
+    background: transparent;
+    border: 2px solid var(--accent2);
+    box-shadow: 0 0 7px rgba(115,169,255,.8);
+  }
+
+  .binder-scroll {
+    overflow-y: auto;
+    padding: 14px;
+    flex: 1 1 auto;
+  }
+
+  .binder-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .binder-card {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    min-width: 0;
+    padding: 5px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: #101218;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition:
+      transform .12s ease,
+      border-color .12s ease,
+      box-shadow .12s ease,
+      background .12s ease;
+  }
+
+  .binder-card:hover {
+    transform: translateY(-2px);
+    border-color: #656d7e;
+  }
+
+  .binder-card-image {
+    width: 78%;
+    height: 78%;
+    object-fit: contain;
+    filter: grayscale(1) brightness(.22);
+    opacity: .42;
+    transition: filter .16s ease, opacity .16s ease;
+    pointer-events: none;
+  }
+
+  .binder-card.is-caught {
+    background: #181b21;
+    border-color: rgba(244,207,74,.55);
+  }
+
+  .binder-card.is-caught .binder-card-image {
+    filter: none;
+    opacity: 1;
+  }
+
+  .binder-card.is-current {
+    border: 2px solid var(--accent2);
+    box-shadow:
+      inset 0 0 0 1px rgba(115,169,255,.25),
+      0 0 12px rgba(115,169,255,.68);
+    animation: binderCurrentPulse 1.9s ease-in-out infinite;
+  }
+
+  .binder-card.is-current::after {
+    content: "HUNT";
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    background: var(--accent2);
+    color: #101218;
+    font-size: 8px;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: .35px;
+  }
+
+  .binder-card-number {
+    position: absolute;
+    left: 5px;
+    top: 4px;
+    color: rgba(255,255,255,.72);
+    font-size: 9px;
+    font-weight: 800;
+    text-shadow: 0 1px 2px rgba(0,0,0,.8);
+  }
+
+  .binder-card-name {
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    bottom: 3px;
+    padding: 3px 3px 2px;
+    border-radius: 4px;
+    background: rgba(10,12,16,.78);
+    color: rgba(255,255,255,.92);
+    font-size: 9px;
+    line-height: 1.05;
+    font-weight: 700;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .binder-card-image-failed {
+    display: none;
+  }
+
+  @keyframes binderCurrentPulse {
+    0%, 100% {
+      box-shadow:
+        inset 0 0 0 1px rgba(115,169,255,.20),
+        0 0 8px rgba(115,169,255,.48);
+    }
+    50% {
+      box-shadow:
+        inset 0 0 0 1px rgba(115,169,255,.34),
+        0 0 16px rgba(115,169,255,.82);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .binder-drawer {
+      width: calc(100vw - 42px);
+    }
+
+    .binder-tab {
+      width: 36px;
+      height: 76px;
+      font-size: 21px;
+    }
+
+    .binder-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .binder-scroll {
+      padding: 10px;
+    }
+  }
+
   .history {
     margin-top: 14px;
     border-top: 1px solid var(--border);
@@ -449,6 +695,50 @@
 </head>
 
 <body>
+
+<button
+  id="binderTab"
+  class="binder-tab"
+  type="button"
+  aria-label="Open shiny binder"
+  aria-expanded="false"
+  aria-controls="binderDrawer"
+  title="Open shiny binder"
+>
+  <span class="binder-tab-arrow">‹</span>
+</button>
+
+<aside
+  id="binderDrawer"
+  class="binder-drawer"
+  aria-label="Shiny collection binder"
+  aria-hidden="true"
+>
+  <div class="binder-header">
+    <h2 class="binder-title">Shiny Binder</h2>
+    <div id="binderCount" class="binder-count">0 / 0 caught</div>
+
+    <div class="binder-legend">
+      <span class="binder-legend-item">
+        <span class="binder-legend-dot"></span>
+        Uncaught
+      </span>
+      <span class="binder-legend-item">
+        <span class="binder-legend-dot caught"></span>
+        Caught
+      </span>
+      <span class="binder-legend-item">
+        <span class="binder-legend-dot current"></span>
+        Current hunt
+      </span>
+    </div>
+  </div>
+
+  <div class="binder-scroll">
+    <div id="binderGrid" class="binder-grid"></div>
+  </div>
+</aside>
+
 <main class="app">
   <h1>Pokémon Shiny Hunt Randomizer</h1>
   <p class="sub">
@@ -565,7 +855,7 @@
   </div>
 
   <p class="note">
-    Randomizer by Blue<33 I saw the need for a tool to help with Shiny Hunting and... here it is! I hope you enjoy it as much as I do! (Supported: All Mainline Switch Games)
+   Randomizer by Blue<33 I saw the need for a tool to help with Shiny Hunting and... here it is! I hope you enjoy it as much as I do! (Supported: All Mainline Switch Games)
   </p>
 </main>
 
@@ -802,6 +1092,7 @@ let currentDisplayedPokemon = null;
 let currentHuntSpeciesKey = null;
 let caughtSpecies = new Set();
 let pendingSavedState = null;
+let binderRendered = false;
 
 const statusEl = document.getElementById("status");
 const randomizeBtn = document.getElementById("randomizeBtn");
@@ -835,6 +1126,10 @@ const exportSaveBtn = document.getElementById("exportSaveBtn");
 const importSaveBtn = document.getElementById("importSaveBtn");
 const importSaveInput = document.getElementById("importSaveInput");
 const saveMessageEl = document.getElementById("saveMessage");
+const binderTab = document.getElementById("binderTab");
+const binderDrawer = document.getElementById("binderDrawer");
+const binderGrid = document.getElementById("binderGrid");
+const binderCountEl = document.getElementById("binderCount");
 
 const SPECIAL_NAMES = {
   "nidoran-f": "Nidoran♀",
@@ -1246,6 +1541,127 @@ function huntMethodsForPokemon(pokemon) {
 }
 
 
+
+function binderIsOpen() {
+  return document.body.classList.contains("binder-open");
+}
+
+function setBinderOpen(open) {
+  document.body.classList.toggle("binder-open", open);
+  binderTab.setAttribute("aria-expanded", String(open));
+  binderDrawer.setAttribute("aria-hidden", String(!open));
+  binderTab.setAttribute(
+    "aria-label",
+    open ? "Close shiny binder" : "Open shiny binder"
+  );
+  binderTab.title = open ? "Close shiny binder" : "Open shiny binder";
+
+  if (open && !binderRendered && masterPool.length) {
+    renderBinder();
+  }
+
+  if (open) {
+    updateBinderUI();
+  }
+}
+
+function toggleBinder() {
+  setBinderOpen(!binderIsOpen());
+}
+
+function binderShinySpriteUrl(pokemon) {
+  return `${POKEMONDB_SHINY_SPRITE_BASE}${pokemonDbSpriteId(pokemon.speciesSlug)}.png`;
+}
+
+function renderBinder() {
+  if (!masterPool.length) return;
+
+  binderGrid.innerHTML = "";
+  const fragment = document.createDocumentFragment();
+
+  const binderPokemon = masterPool
+    .slice()
+    .sort((a, b) => Number(a.nationalDex) - Number(b.nationalDex));
+
+  for (const pokemon of binderPokemon) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "binder-card";
+    card.dataset.speciesId = String(pokemon.nationalDex);
+    card.title =
+      `#${String(pokemon.nationalDex).padStart(4, "0")} ${pokemon.name}`;
+
+    const image = document.createElement("img");
+    image.className = "binder-card-image";
+    image.loading = "lazy";
+    image.decoding = "async";
+    image.alt = `${pokemon.name} shiny`;
+    image.src = binderShinySpriteUrl(pokemon);
+
+    image.addEventListener("error", () => {
+      image.classList.add("binder-card-image-failed");
+    });
+
+    const number = document.createElement("span");
+    number.className = "binder-card-number";
+    number.textContent = `#${String(pokemon.nationalDex).padStart(4, "0")}`;
+
+    const name = document.createElement("span");
+    name.className = "binder-card-name";
+    name.textContent = pokemon.name;
+
+    card.append(image, number, name);
+
+    card.addEventListener("click", () => {
+      displayPokemon(pokemon);
+      manualPokemonInputEl.value = pokemon.name;
+    });
+
+    fragment.appendChild(card);
+  }
+
+  binderGrid.appendChild(fragment);
+  binderRendered = true;
+  updateBinderUI();
+}
+
+function updateBinderUI() {
+  const total = masterPool.length;
+  const caughtCount = [...caughtSpecies]
+    .filter(id => masterPool.some(
+      pokemon => Number(pokemon.nationalDex) === Number(id)
+    ))
+    .length;
+
+  binderCountEl.textContent = `${caughtCount} / ${total} caught`;
+
+  if (!binderRendered) return;
+
+  for (const card of binderGrid.querySelectorAll(".binder-card")) {
+    const id = Number(card.dataset.speciesId);
+    const isCaught = caughtSpecies.has(id);
+    const isCurrent = Number(currentHuntSpeciesKey) === id;
+
+    card.classList.toggle("is-caught", isCaught);
+    card.classList.toggle("is-current", isCurrent);
+
+    const pokemon = pokemonByNationalDex(id);
+
+    if (pokemon) {
+      const state = isCaught
+        ? "Caught"
+        : isCurrent
+          ? "Current hunt"
+          : "Uncaught";
+
+      card.setAttribute(
+        "aria-label",
+        `${pokemon.name}, National Pokédex ${id}, ${state}`
+      );
+    }
+  }
+}
+
 function safeIntegerArray(value) {
   if (!Array.isArray(value)) return [];
 
@@ -1430,6 +1846,8 @@ function updateProgressUI() {
     caughtBtn.textContent = "Mark Displayed as Caught";
     caughtBtn.classList.remove("is-caught");
   }
+
+  updateBinderUI();
 }
 
 function setDisplayedAsCurrentHunt() {
@@ -1710,6 +2128,14 @@ function buildPools(dexData) {
 
   gamePools = pools;
   masterPool = ordered;
+
+  binderRendered = false;
+  binderGrid.innerHTML = "";
+  updateBinderUI();
+
+  if (binderIsOpen()) {
+    renderBinder();
+  }
 }
 
 
@@ -1991,6 +2417,13 @@ async function loadDexData(forceRefresh = false) {
 
 makeGameCheckboxes();
 pendingSavedState = readSavedState();
+
+binderTab.addEventListener("click", toggleBinder);
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && binderIsOpen()) {
+    setBinderOpen(false);
+  }
+});
 
 randomizeBtn.addEventListener("click", rollPokemon);
 resetBtn.addEventListener("click", resetRolls);
