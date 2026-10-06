@@ -222,6 +222,54 @@
     margin-bottom: 16px;
   }
 
+  .manual-picker {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin: 2px 0 14px;
+  }
+
+  .manual-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .manual-input {
+    flex: 1;
+    min-width: 0;
+    background: #111319;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 11px 12px;
+    font: inherit;
+    outline: none;
+  }
+
+  .manual-input:focus {
+    border-color: var(--accent2);
+  }
+
+  #manualSelectBtn {
+    background: var(--accent2);
+    color: #111319;
+    white-space: nowrap;
+  }
+
+  .manual-help,
+  .manual-message {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.4;
+    margin-top: 8px;
+  }
+
+  .manual-message.error {
+    color: var(--danger);
+  }
+
   .history {
     margin-top: 14px;
     border-top: 1px solid var(--border);
@@ -252,6 +300,8 @@
     .hunt-number { font-size: 35px; }
     .pokemon-name { font-size: 26px; }
     .sprite-compare { grid-template-columns: 1fr; }
+    .manual-row { flex-direction: column; }
+    #manualSelectBtn { width: 100%; }
   }
 </style>
 </head>
@@ -261,8 +311,8 @@
   <h1>Pokémon Shiny Hunt Randomizer</h1>
   <p class="sub">
     Builds one ascending, duplicate-free list of Pokémon you can actually shiny hunt,
-    ordered Sword/Shield → Legends: Arceus → Scarlet/Violet → Legends: Z-A → FireRed,
-    with a normal animated sprite and a shiny comparison sprite.
+    starting with Sword/Shield and adding new species from the other games you own.
+    Each result includes normal and shiny comparison sprites.
   </p>
 
   <div id="status" class="status">Loading Pokédex data…</div>
@@ -300,6 +350,26 @@
   <div class="section-title">Include these games</div>
   <div id="dexGrid" class="dex-grid"></div>
 
+  <div class="section-title">Manually choose a Pokémon</div>
+  <div class="manual-picker">
+    <div class="manual-row">
+      <input
+        id="manualPokemonInput"
+        class="manual-input"
+        list="manualPokemonList"
+        placeholder="Type a Pokémon name or National Dex number…"
+        autocomplete="off"
+      >
+      <datalist id="manualPokemonList"></datalist>
+      <button id="manualSelectBtn" type="button" disabled>Show Pokémon</button>
+    </div>
+    <div class="manual-help">
+      This searchable list only shows Pokémon huntable in the games currently ticked above.
+      Manual selections do not consume a random roll.
+    </div>
+    <div id="manualMessage" class="manual-message"></div>
+  </div>
+
   <div class="options">
     <label>
       <input id="noRepeats" type="checkbox" checked>
@@ -313,7 +383,7 @@
   </div>
 
   <p class="note">
-     Randomizer by Blue<33 Currently supports Fire Red, Sword & Shield, Scarlet & Violet, Legends: Arceus, and Legends: Z-A
+    Randomizer by Blue<33 Currently supports Fire Red & Leaf Green, Brilliant Diamond & Shining Pearl, Let's Go Pikachu & Eevee, Sword & Shield, Scarlet & Violet, Legends: Arceus, and Legends: Z-A
   </p>
 </main>
 
@@ -348,10 +418,30 @@ const GAME_SOURCES = [
     label: "FireRed — Switch",
     shortLabel: "FireRed",
     dexes: ["kanto"]
+  },
+  {
+    key: "leafgreen",
+    label: "LeafGreen — Switch",
+    shortLabel: "LeafGreen",
+    dexes: ["kanto"]
+  },
+  {
+    key: "bdsp",
+    label: "Brilliant Diamond & Shining Pearl",
+    shortLabel: "BDSP",
+    dexes: [],
+    nationalRange: [1, 493]
+  },
+  {
+    key: "letsgo",
+    label: "Let's Go Pikachu & Eevee",
+    shortLabel: "Let's Go",
+    dexes: [],
+    nationalRange: [1, 150]
   }
 ];
 
-const CACHE_KEY = "pokemonShinyRandomizerHuntableCache_v3";
+const CACHE_KEY = "pokemonShinyRandomizerHuntableCache_v7";
 const SHOWDOWN_SPRITE_BASE = "https://play.pokemonshowdown.com/sprites/ani/";
 const POKEMONDB_SHINY_SPRITE_BASE = "https://img.pokemondb.net/sprites/home/shiny/";
 
@@ -359,64 +449,107 @@ const POKEMONDB_SHINY_SPRITE_BASE = "https://img.pokemondb.net/sprites/home/shin
 // Regular breedable starters are intentionally NOT listed here.
 const LOCKED_BY_GAME = {
   swsh: new Set([
-    647,       // Keldeo
-    772, 773,  // Type: Null, Silvally
-    789, 790,  // Cosmog, Cosmoem
-    803, 804,  // Poipole, Naganadel
-    888, 889, 890, // Zacian, Zamazenta, Eternatus
-    891, 892,  // Kubfu, Urshifu
-    896, 897, 898 // Glastrier, Spectrier, Calyrex
+    647,
+    772, 773,
+    789, 790,
+    803, 804,
+    888, 889, 890,
+    891, 892,
+    896, 897, 898
   ]),
 
   pla: new Set([
-    480, 481, 482, // Uxie, Mesprit, Azelf
-    483, 484,      // Dialga, Palkia
-    485, 486, 487, 488, // Heatran, Regigigas, Giratina, Cresselia
-    489, 490,      // Phione, Manaphy
-    491, 492, 493, // Darkrai, Shaymin, Arceus
-    641, 642, 645, // Tornadus, Thundurus, Landorus
-    905            // Enamorus
+    480, 481, 482,
+    483, 484,
+    485, 486, 487, 488,
+    489, 490,
+    491, 492, 493,
+    641, 642, 645,
+    905
   ]),
 
   sv: new Set([
-    901,       // Ursaluna: only Bloodmoon Ursaluna is native, and it is locked
-    999, 1000, // Gimmighoul/Gholdengo: permanent encounters are shiny-locked
-    1001, 1002, 1003, 1004, // Treasures of Ruin
-    1007, 1008, // Koraidon, Miraidon
-    1009, 1010, // Walking Wake, Iron Leaves
-    1014, 1015, 1016, // Loyal Three
-    1017,       // Ogerpon
-    1020, 1021, 1022, 1023, // DLC Paradox legendaries
-    1024, 1025  // Terapagos, Pecharunt
+    901,
+    999, 1000,
+    1001, 1002, 1003, 1004,
+    1007, 1008,
+    1009, 1010,
+    1014, 1015, 1016,
+    1017,
+    1020, 1021, 1022, 1023,
+    1024, 1025
   ]),
 
   za: new Set([
-    150,             // Mewtwo
-    382, 383, 384,   // Kyogre, Groudon, Rayquaza
-    485, 491,        // Heatran, Darkrai
-    647, 648, 649,   // Keldeo, Meloetta, Genesect
-    716, 717, 718,   // Xerneas, Yveltal, Zygarde
-    719, 720, 721,   // Diancie, Hoopa, Volcanion
-    801, 802,        // Magearna, Marshadow
-    807, 808, 809    // Zeraora, Meltan, Melmetal
+    150,
+    382, 383, 384,
+    485, 491,
+    647, 648, 649,
+    716, 717, 718,
+    719, 720, 721,
+    801, 802,
+    807, 808, 809
   ]),
 
-  // FireRed has no normal shiny-lock system. These are unavailable specifically
-  // in FireRed (rather than LeafGreen), plus Mew which has no native Switch hunt.
+  // LeafGreen-exclusive Kanto species are removed from FireRed.
   firered: new Set([
-    27, 28,       // Sandshrew line
-    37, 38,       // Vulpix line
-    69, 70, 71,   // Bellsprout line
-    79, 80,       // Slowpoke, Slowbro
-    120, 121,     // Staryu line
-    126,          // Magmar
-    127,          // Pinsir
-    151           // Mew
-  ])
+    27, 28,
+    37, 38,
+    69, 70, 71,
+    79, 80,
+    120, 121,
+    126, 127,
+    151
+  ]),
+
+  // FireRed-exclusive Kanto species are removed from LeafGreen.
+  leafgreen: new Set([
+    23, 24,
+    43, 44, 45,
+    54, 55,
+    58, 59,
+    90, 91,
+    123, 125,
+    151
+  ]),
+
+  // Across the BDSP pair, almost every species from #001-#493 has a permanent
+  // native hunt. These are transfer-only, shiny-locked gifts, or expired-event-only.
+  bdsp: new Set([
+    151, // Mew - save-data gift, shiny locked
+    251, // Celebi - transfer only
+    385, // Jirachi - save-data gift, shiny locked
+    386, // Deoxys - transfer only
+    489, // Phione - no permanent native starting source
+    490, // Manaphy - limited Mystery Gift egg
+    491, // Darkrai - Member Card distribution required
+    492  // Shaymin - Oak's Letter distribution required
+  ]),
+
+  // Range stops at Mewtwo, so the shiny-locked Poké Ball Plus Mew is already absent.
+  letsgo: new Set([])
 };
 
 // Non-regional-dex hunts that are permanently shiny eligible.
 // Sword/Shield additions are primarily Dynamax Adventures plus Regigigas.
+const FRLG_COMMON_POSTGAME = [
+  161,162,165,166,167,168,169,
+  172,173,174,175,176,177,178,186,
+  187,188,189,193,201,202,206,208,
+  214,218,219,220,221,230,
+  231,232,233,236,237,238,242,
+  243,244,245,246,247,248,249,250,
+  386
+];
+
+const FIRERED_EXCLUSIVE_POSTGAME = [
+  182,194,195,198,211,212,225,227,239
+];
+
+const LEAFGREEN_EXCLUSIVE_POSTGAME = [
+  183,184,199,200,215,223,224,226,240,298
+];
+
 const EXTRA_HUNTABLE_BY_GAME = {
   swsh: new Set([
     144,145,146,150,
@@ -432,21 +565,24 @@ const EXTRA_HUNTABLE_BY_GAME = {
   ]),
 
   pla: new Set([]),
-
   sv: new Set([]),
 
   // These five can specifically appear shiny in Z-A's Special Scan zones.
   za: new Set([380,381,638,639,640]),
 
-  // FireRed Switch: native postgame Johto access plus restored ticket encounters.
+  // Switch FRLG includes the permanent Mystic/Aurora Ticket encounters.
   firered: new Set([
-    161,162,165,166,167,168,169,
-    172,173,174,175,176,177,178,182,186,
-    187,188,189,193,194,195,198,201,202,206,208,
-    211,212,214,218,219,220,221,225,227,230,
-    231,232,233,236,237,238,239,242,246,247,248,
-    243,244,245,249,250,386
-  ])
+    ...FRLG_COMMON_POSTGAME,
+    ...FIRERED_EXCLUSIVE_POSTGAME
+  ]),
+
+  leafgreen: new Set([
+    ...FRLG_COMMON_POSTGAME,
+    ...LEAFGREEN_EXCLUSIVE_POSTGAME
+  ]),
+
+  bdsp: new Set([]),
+  letsgo: new Set([])
 };
 
 // Slugs for species that may be added through an exception rather than a regional dex.
@@ -494,6 +630,10 @@ const shinySpriteMessageEl = document.getElementById("shinySpriteMessage");
 const dexGrid = document.getElementById("dexGrid");
 const historyList = document.getElementById("historyList");
 const noRepeatsEl = document.getElementById("noRepeats");
+const manualPokemonInputEl = document.getElementById("manualPokemonInput");
+const manualPokemonListEl = document.getElementById("manualPokemonList");
+const manualSelectBtn = document.getElementById("manualSelectBtn");
+const manualMessageEl = document.getElementById("manualMessage");
 
 const SPECIAL_NAMES = {
   "nidoran-f": "Nidoran♀",
@@ -600,26 +740,29 @@ const ZA_SPECIAL_SCAN_SHINIES = new Set([380, 381, 638, 639, 640]);
 const FIRERED_NAVEL_ROCK = new Set([249, 250]);
 const FIRERED_BIRTH_ISLAND = new Set([386]);
 
-const FIRERED_POSTGAME_JOHTO = new Set([
-  161,162,165,166,167,168,169,
-  172,173,174,175,176,177,178,182,186,
-  187,188,189,193,194,195,198,201,202,206,208,
-  211,212,214,218,219,220,221,225,227,230,
-  231,232,233,236,237,238,239,242,246,247,248,
-  243,244,245
+const FRLG_POSTGAME_SPECIES = new Set([
+  ...FRLG_COMMON_POSTGAME,
+  ...FIRERED_EXCLUSIVE_POSTGAME,
+  ...LEAFGREEN_EXCLUSIVE_POSTGAME
 ]);
+
+const BDSP_STATIC_LEGENDARIES = new Set([
+  144,145,146,150,
+  243,244,245,249,250,
+  377,378,379,380,381,382,383,384,
+  480,481,482,483,484,485,486,487,488
+]);
+
+const LETSGO_STATIC_SHINIES = new Set([144,145,146,150]);
 
 function huntMethodForGame(gameKey, pokemon) {
   const id = pokemon.nationalDex;
 
   if (gameKey === "swsh") {
     if (EXTRA_HUNTABLE_BY_GAME.swsh.has(id)) {
-      if (id === 486) {
-        return "Crown Tundra static encounter";
-      }
+      if (id === 486) return "Crown Tundra static encounter";
       return "Dynamax Adventures";
     }
-
     return "Native encounter, breeding, or evolution";
   }
 
@@ -635,24 +778,33 @@ function huntMethodForGame(gameKey, pokemon) {
     if (ZA_SPECIAL_SCAN_SHINIES.has(id)) {
       return "Special Scan — shiny-capable legendary encounter";
     }
-
     return "Native Lumiose/Hyperspace encounter or evolution";
   }
 
-  if (gameKey === "firered") {
-    if (FIRERED_NAVEL_ROCK.has(id)) {
-      return "Navel Rock static encounter";
-    }
-
-    if (FIRERED_BIRTH_ISLAND.has(id)) {
-      return "Birth Island static encounter";
-    }
-
-    if (FIRERED_POSTGAME_JOHTO.has(id)) {
+  if (gameKey === "firered" || gameKey === "leafgreen") {
+    if (FIRERED_NAVEL_ROCK.has(id)) return "Navel Rock static encounter";
+    if (FIRERED_BIRTH_ISLAND.has(id)) return "Birth Island static encounter";
+    if (FRLG_POSTGAME_SPECIES.has(id)) {
       return "Sevii Islands/postgame encounter, breeding, or evolution";
     }
-
     return "Wild/static encounter, breeding, or evolution";
+  }
+
+  if (gameKey === "bdsp") {
+    if (id === 493) {
+      return "Hall of Origin static encounter — requires completed Legends: Arceus save data";
+    }
+    if (BDSP_STATIC_LEGENDARIES.has(id)) {
+      return "Shiny-capable static legendary encounter (Sinnoh/Ramanas Park)";
+    }
+    return "Wild encounter, Grand Underground, Poké Radar, breeding, or evolution";
+  }
+
+  if (gameKey === "letsgo") {
+    if (LETSGO_STATIC_SHINIES.has(id)) {
+      return "Shiny-capable static encounter";
+    }
+    return "Wild encounter/Catch Combo or evolution";
   }
 
   return "Native shiny-capable encounter";
@@ -678,7 +830,10 @@ function makeGameCheckboxes() {
     dexGrid.appendChild(label);
   }
 
-  dexGrid.addEventListener("change", updateStatus);
+  dexGrid.addEventListener("change", () => {
+    updateStatus();
+    updateManualPokemonList();
+  });
 }
 
 async function fetchDex(slug) {
@@ -709,7 +864,8 @@ function selectedGameKeys() {
 function buildPools(dexData) {
   const speciesIndex = new Map();
 
-  // Index every species seen in any fetched Pokédex.
+  // 'national' is fetched as a name/index source so custom game pools such as
+  // BDSP can safely reference every National Dex species in their supported range.
   for (const entries of Object.values(dexData)) {
     for (const entry of entries || []) {
       if (!entry.nationalDex) continue;
@@ -724,8 +880,6 @@ function buildPools(dexData) {
     }
   }
 
-  // Supply names for manually-added encounters not guaranteed to appear in
-  // one of the regional Pokédexes.
   for (const [idText, slug] of Object.entries(MANUAL_SPECIES)) {
     const id = Number(idText);
     if (!speciesIndex.has(id)) {
@@ -741,6 +895,13 @@ function buildPools(dexData) {
 
   for (const game of GAME_SOURCES) {
     const ids = new Set();
+
+    if (game.nationalRange) {
+      const [first, last] = game.nationalRange;
+      for (let id = first; id <= last; id++) {
+        ids.add(id);
+      }
+    }
 
     for (const dexSlug of game.dexes) {
       for (const entry of dexData[dexSlug] || []) {
@@ -759,8 +920,8 @@ function buildPools(dexData) {
     pools[game.key] = ids;
   }
 
-  // Build one duplicate-free target list. New species are appended game-by-game,
-  // while species within a game's new additions are National-Dex ordered.
+  // Preserve the established hunt-number philosophy: start with Sword/Shield,
+  // then append only species that have not already appeared in an earlier source.
   const seen = new Set();
   const ordered = [];
 
@@ -784,7 +945,6 @@ function buildPools(dexData) {
     }
   }
 
-  // Attach every selected-game source that can hunt each species.
   for (const item of ordered) {
     item.games = GAME_SOURCES
       .filter(game => pools[game.key].has(item.nationalDex))
@@ -798,6 +958,7 @@ function buildPools(dexData) {
   gamePools = pools;
   masterPool = ordered;
 }
+
 
 function currentPool() {
   const selected = selectedGameKeys();
@@ -820,6 +981,95 @@ function updateStatus(extra = "") {
     (extra ? ` ${extra}` : "");
 
   randomizeBtn.disabled = pool.length === 0;
+}
+
+function updateManualPokemonList() {
+  if (!manualPokemonListEl) return;
+
+  const pool = currentPool()
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  manualPokemonListEl.innerHTML = "";
+
+  for (const pokemon of pool) {
+    const option = document.createElement("option");
+    option.value = pokemon.name;
+    option.label =
+      `National #${String(pokemon.nationalDex).padStart(4, "0")} • ` +
+      `Hunt #${String(pokemon.huntNumber).padStart(3, "0")}`;
+    manualPokemonListEl.appendChild(option);
+  }
+
+  manualSelectBtn.disabled = pool.length === 0;
+  manualMessageEl.textContent = pool.length
+    ? `${pool.length} Pokémon available in the manual list.`
+    : "Select at least one game to use the manual list.";
+  manualMessageEl.classList.remove("error");
+}
+
+function findManualPokemon(rawValue) {
+  const pool = currentPool();
+  const raw = rawValue.trim();
+
+  if (!raw) return null;
+
+  const numeric = raw.replace(/^#/, "");
+  if (/^\d+$/.test(numeric)) {
+    const nationalDex = Number(numeric);
+    const numberMatch = pool.find(p => p.nationalDex === nationalDex);
+    if (numberMatch) return numberMatch;
+  }
+
+  const lowered = raw.toLowerCase();
+
+  const exact = pool.find(p =>
+    p.name.toLowerCase() === lowered ||
+    p.speciesSlug.toLowerCase() === lowered
+  );
+  if (exact) return exact;
+
+  const startsWith = pool.filter(p =>
+    p.name.toLowerCase().startsWith(lowered)
+  );
+
+  return startsWith.length === 1 ? startsWith[0] : null;
+}
+
+function displayPokemon(result) {
+  const selected = selectedGameKeys();
+  const availableIn = GAME_SOURCES
+    .filter(game => selected.has(game.key) && result.games.includes(game.key))
+    .map(game => game.shortLabel);
+
+  huntNumberEl.textContent = `#${String(result.huntNumber).padStart(3, "0")}`;
+  pokemonNameEl.textContent = result.name;
+  showSprite(result);
+
+  detailsEl.textContent =
+    `National Dex #${String(result.nationalDex).padStart(4, "0")} • ` +
+    `Shiny huntable in: ${availableIn.join(", ")}`;
+
+  const methods = huntMethodsForPokemon(result);
+  huntMethodEl.innerHTML =
+    `<strong>Why can I hunt this?</strong> ${methods.join(" • ")}`;
+}
+
+function showManualPokemon() {
+  const result = findManualPokemon(manualPokemonInputEl.value);
+
+  if (!result) {
+    manualMessageEl.textContent =
+      "I couldn't find one eligible Pokémon matching that entry. Try choosing a name from the dropdown.";
+    manualMessageEl.classList.add("error");
+    return;
+  }
+
+  displayPokemon(result);
+  manualPokemonInputEl.value = result.name;
+  manualMessageEl.textContent =
+    `${result.name} displayed. This did not count as a random roll.`;
+  manualMessageEl.classList.remove("error");
 }
 
 function renderHistory() {
@@ -867,22 +1117,7 @@ function rollPokemon() {
 
   history.push(result);
 
-  const selected = selectedGameKeys();
-  const availableIn = GAME_SOURCES
-    .filter(game => selected.has(game.key) && result.games.includes(game.key))
-    .map(game => game.shortLabel);
-
-  huntNumberEl.textContent = `#${String(result.huntNumber).padStart(3, "0")}`;
-  pokemonNameEl.textContent = result.name;
-  showSprite(result);
-
-  detailsEl.textContent =
-    `National Dex #${String(result.nationalDex).padStart(4, "0")} • ` +
-    `Shiny huntable in: ${availableIn.join(", ")}`;
-
-  const methods = huntMethodsForPokemon(result);
-  huntMethodEl.innerHTML =
-    `<strong>How can I hunt this?</strong> ${methods.join(" • ")}`;
+  displayPokemon(result);
 
   renderHistory();
   updateStatus();
@@ -899,6 +1134,7 @@ function resetRolls() {
   huntMethodEl.textContent = "";
   clearSprite();
 
+  manualPokemonInputEl.value = "";
   if (masterPool.length) {
     updateStatus("Roll history reset.");
   }
@@ -916,6 +1152,7 @@ async function loadDexData(forceRefresh = false) {
 
         if (masterPool.length) {
           updateStatus("Loaded from local cache.");
+          updateManualPokemonList();
           randomizeBtn.disabled = currentPool().length === 0;
           return;
         }
@@ -925,7 +1162,10 @@ async function loadDexData(forceRefresh = false) {
     }
   }
 
-  const dexSlugs = [...new Set(GAME_SOURCES.flatMap(game => game.dexes))];
+  const dexSlugs = [...new Set([
+    ...GAME_SOURCES.flatMap(game => game.dexes),
+    "national"
+  ])];
   const dexData = {};
   const failures = [];
 
@@ -970,12 +1210,20 @@ async function loadDexData(forceRefresh = false) {
   }
 
   randomizeBtn.disabled = currentPool().length === 0;
+  updateManualPokemonList();
 }
 
 makeGameCheckboxes();
 
 randomizeBtn.addEventListener("click", rollPokemon);
 resetBtn.addEventListener("click", resetRolls);
+manualSelectBtn.addEventListener("click", showManualPokemon);
+manualPokemonInputEl.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    showManualPokemon();
+  }
+});
 reloadBtn.addEventListener("click", async () => {
   localStorage.removeItem(CACHE_KEY);
   resetRolls();
