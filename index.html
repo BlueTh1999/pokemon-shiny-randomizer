@@ -153,6 +153,48 @@
     color: var(--accent2);
   }
 
+  .spot-section {
+    margin-top: 14px;
+    text-align: left;
+  }
+
+  .spot-heading {
+    font-size: 15px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .spot-status {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .location-list {
+    margin-top: 8px;
+    display: grid;
+    gap: 7px;
+  }
+
+  .location-row {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .location-game {
+    font-weight: 800;
+    color: var(--accent2);
+  }
+
+  .location-text {
+    color: var(--text);
+  }
+
   .buttons {
     display: flex;
     gap: 10px;
@@ -339,6 +381,12 @@
 
     <div id="details" class="details">Your shiny target will appear here.</div>
     <div id="huntMethod" class="hunt-method"></div>
+
+    <div id="spotSection" class="spot-section" style="display:none;">
+      <div class="spot-heading">Locations</div>
+      <div id="spotStatus" class="spot-status"></div>
+      <div id="spotGrid" class="location-list"></div>
+    </div>
   </section>
 
   <div class="buttons">
@@ -634,6 +682,9 @@ const manualPokemonInputEl = document.getElementById("manualPokemonInput");
 const manualPokemonListEl = document.getElementById("manualPokemonList");
 const manualSelectBtn = document.getElementById("manualSelectBtn");
 const manualMessageEl = document.getElementById("manualMessage");
+const spotSectionEl = document.getElementById("spotSection");
+const spotStatusEl = document.getElementById("spotStatus");
+const spotGridEl = document.getElementById("spotGrid");
 
 const SPECIAL_NAMES = {
   "nidoran-f": "Nidoran♀",
@@ -734,6 +785,232 @@ function showSprite(pokemon) {
   shinySpriteEl.src = shinySpriteUrl;
 }
 
+
+
+const WILDZONE_GAME_NAMES = {
+  swsh: new Set(["sword", "shield"]),
+  pla: new Set(["legends arceus"]),
+  sv: new Set(["scarlet", "violet"]),
+  firered: new Set(["firered"]),
+  leafgreen: new Set(["leafgreen"]),
+  bdsp: new Set(["brilliant diamond", "shining pearl"]),
+  letsgo: new Set(["let's go, pikachu!", "let's go, eevee!", "lets go, pikachu!", "lets go, eevee!"])
+};
+
+const MAX_LAIR_LEGENDARIES = new Set([
+  144,145,146,150,
+  243,244,245,249,250,
+  380,381,382,383,384,
+  480,481,482,483,484,485,487,488,
+  641,642,643,644,645,646,
+  716,717,718,
+  785,786,787,788,
+  791,792,
+  793,794,795,796,797,798,799,800,
+  805,806
+]);
+
+const RAMANAS_PARK_LEGENDARIES = new Set([
+  144,145,146,150,
+  243,244,245,249,250,
+  377,378,379,380,381,382,383,384,
+  483,484,487
+]);
+
+let spotRequestToken = 0;
+const wildZoneHtmlCache = new Map();
+
+function gameByKey(key) {
+  return GAME_SOURCES.find(game => game.key === key);
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .replace(/[’‘]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function curatedLocationsForGame(gameKey, pokemon) {
+  const id = pokemon.nationalDex;
+
+  if (gameKey === "swsh") {
+    if (id === 486) return ["Giant's Bed, Crown Tundra"];
+    if (MAX_LAIR_LEGENDARIES.has(id)) return ["Max Lair, Crown Tundra"];
+  }
+
+  if (gameKey === "za") {
+    if (ZA_SPECIAL_SCAN_SHINIES.has(id)) {
+      return ["Hyperspace Wild Zone — Special Scan"];
+    }
+
+    return ["Lumiose / Hyperspace"];
+  }
+
+  if (gameKey === "firered" || gameKey === "leafgreen") {
+    if (id === 249 || id === 250) return ["Navel Rock"];
+    if (id === 386) return ["Birth Island"];
+
+    const staticKanto = {
+      144: ["Seafoam Islands"],
+      145: ["Power Plant"],
+      146: ["Mt. Ember"],
+      150: ["Cerulean Cave"]
+    };
+
+    if (staticKanto[id]) return staticKanto[id];
+  }
+
+  if (gameKey === "bdsp") {
+    if (id === 493) return ["Hall of Origin"];
+    if (RAMANAS_PARK_LEGENDARIES.has(id)) return ["Ramanas Park"];
+  }
+
+  if (gameKey === "letsgo") {
+    const staticLetsGo = {
+      144: ["Seafoam Islands"],
+      145: ["Power Plant"],
+      146: ["Victory Road"],
+      150: ["Cerulean Cave"]
+    };
+
+    if (staticLetsGo[id]) return staticLetsGo[id];
+  }
+
+  return null;
+}
+
+async function fetchWildZoneHtml(speciesSlug) {
+  if (wildZoneHtmlCache.has(speciesSlug)) {
+    return wildZoneHtmlCache.get(speciesSlug);
+  }
+
+  const targetUrl = `https://wildzone.com/pokemon/${encodeURIComponent(speciesSlug)}/`;
+
+  // Try WildZone directly first in case its current hosting permits cross-origin reads.
+  const attempts = [
+    targetUrl,
+    `https://proxy.cors.dev/${targetUrl}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+  ];
+
+  for (const url of attempts) {
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) continue;
+
+      const text = await response.text();
+
+      if (text && text.includes("<") && text.length > 500) {
+        wildZoneHtmlCache.set(speciesSlug, text);
+        return text;
+      }
+    } catch {
+      // Try the next source.
+    }
+  }
+
+  wildZoneHtmlCache.set(speciesSlug, "");
+  return "";
+}
+
+function parseWildZoneLocations(htmlText, gameKey) {
+  if (!htmlText) return [];
+
+  const acceptedGames = WILDZONE_GAME_NAMES[gameKey];
+  if (!acceptedGames) return [];
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlText, "text/html");
+  const locations = [];
+
+  for (const row of doc.querySelectorAll("tr")) {
+    const cells = [...row.querySelectorAll("th, td")];
+
+    if (cells.length < 2) continue;
+
+    const gameName = normalizeText(cells[0].textContent);
+
+    if (!acceptedGames.has(gameName)) continue;
+
+    const location = cells[1].textContent
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!location) continue;
+
+    locations.push(location);
+  }
+
+  return [...new Set(locations)].sort((a, b) => a.localeCompare(b));
+}
+
+async function exactLocationsForGame(gameKey, pokemon) {
+  const curated = curatedLocationsForGame(gameKey, pokemon);
+  if (curated) return curated;
+
+  // Z-A currently stays on our curated/general location handling.
+  if (gameKey === "za") return [];
+
+  const htmlText = await fetchWildZoneHtml(pokemon.speciesSlug);
+  return parseWildZoneLocations(htmlText, gameKey);
+}
+
+function renderLocationRow(gameKey, locations) {
+  const game = gameByKey(gameKey);
+  const row = document.createElement("div");
+  row.className = "location-row";
+
+  const locationText = locations.length
+    ? locations.join(" • ")
+    : "No direct encounter location listed — obtained by evolution, breeding, or another special method.";
+
+  row.innerHTML = `
+    <span class="location-game">${game?.shortLabel || gameKey}:</span>
+    <span class="location-text"> ${locationText}</span>
+  `;
+
+  return row;
+}
+
+async function loadPokemonLocations(pokemon) {
+  const token = ++spotRequestToken;
+  const selected = selectedGameKeys();
+
+  const eligibleGames = GAME_SOURCES.filter(
+    game => selected.has(game.key) && pokemon.games.includes(game.key)
+  );
+
+  spotSectionEl.style.display = "block";
+  spotGridEl.innerHTML = "";
+  spotStatusEl.textContent = "Loading locations…";
+
+  const results = await Promise.all(
+    eligibleGames.map(async game => ({
+      gameKey: game.key,
+      locations: await exactLocationsForGame(game.key, pokemon)
+    }))
+  );
+
+  if (token !== spotRequestToken) return;
+
+  spotStatusEl.textContent = "";
+
+  for (const result of results) {
+    spotGridEl.appendChild(
+      renderLocationRow(result.gameKey, result.locations)
+    );
+  }
+}
+
+function clearPokemonLocations() {
+  ++spotRequestToken;
+  spotSectionEl.style.display = "none";
+  spotStatusEl.textContent = "";
+  spotGridEl.innerHTML = "";
+}
 
 const ZA_SPECIAL_SCAN_SHINIES = new Set([380, 381, 638, 639, 640]);
 
@@ -1053,6 +1330,8 @@ function displayPokemon(result) {
   const methods = huntMethodsForPokemon(result);
   huntMethodEl.innerHTML =
     `<strong>Hunting Method:</strong> ${methods.join(" • ")}`;
+
+  loadPokemonLocations(result);
 }
 
 function showManualPokemon() {
@@ -1133,6 +1412,7 @@ function resetRolls() {
   detailsEl.textContent = "Your shiny target will appear here.";
   huntMethodEl.textContent = "";
   clearSprite();
+  clearPokemonLocations();
 
   manualPokemonInputEl.value = "";
   if (masterPool.length) {
