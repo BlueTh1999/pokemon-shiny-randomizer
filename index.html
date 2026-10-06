@@ -343,6 +343,67 @@
     border-color: rgba(255, 123, 123, .55);
   }
 
+
+  .encounter-tracker {
+    display: grid;
+    grid-template-columns: auto minmax(90px, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    margin-top: 10px;
+  }
+
+  .encounter-button {
+    width: 46px;
+    height: 42px;
+    padding: 0;
+    font-size: 22px;
+    line-height: 1;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .encounter-button:disabled {
+    opacity: .4;
+  }
+
+  .encounter-display {
+    min-height: 42px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #111319;
+    display: grid;
+    place-items: center;
+    padding: 5px 10px;
+    text-align: center;
+  }
+
+  .encounter-number {
+    font-size: 21px;
+    font-weight: 900;
+    line-height: 1.05;
+  }
+
+  .encounter-caption {
+    color: var(--muted);
+    font-size: 10px;
+    margin-top: 2px;
+  }
+
+  .encounter-reset-row {
+    margin-top: 8px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  #resetEncounterBtn {
+    padding: 7px 10px;
+    font-size: 12px;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
   .save-actions {
     display: flex;
     gap: 8px;
@@ -808,6 +869,33 @@
       <button id="resetProgressBtn" type="button">Reset Progress</button>
     </div>
 
+    <div class="encounter-tracker" aria-label="Encounter tracker">
+      <button
+        id="encounterMinusBtn"
+        class="encounter-button"
+        type="button"
+        aria-label="Subtract one encounter"
+        disabled
+      >−</button>
+
+      <div class="encounter-display">
+        <div id="encounterCountValue" class="encounter-number">0</div>
+        <div id="encounterCountCaption" class="encounter-caption">No current hunt</div>
+      </div>
+
+      <button
+        id="encounterPlusBtn"
+        class="encounter-button"
+        type="button"
+        aria-label="Add one encounter"
+        disabled
+      >+</button>
+    </div>
+
+    <div class="encounter-reset-row">
+      <button id="resetEncounterBtn" type="button" disabled>Reset Encounter Count</button>
+    </div>
+
     <div class="save-actions">
       <button id="exportSaveBtn" type="button">Export Save</button>
       <button id="importSaveBtn" type="button">Import Save</button>
@@ -855,7 +943,7 @@
   </div>
 
   <p class="note">
-   Randomizer by Blue<33 I saw the need for a tool to help with Shiny Hunting and... here it is! I hope you enjoy it as much as I do! (Supported: All Mainline Switch Games)
+    Randomizer by Blue<33 I saw the need for a tool to help with Shiny Hunting and... here it is! I hope you enjoy it as much as I do! (Supported: All Mainline Switch Games)
   </p>
 </main>
 
@@ -1091,6 +1179,7 @@ let history = [];
 let currentDisplayedPokemon = null;
 let currentHuntSpeciesKey = null;
 let caughtSpecies = new Set();
+let encounterCounts = {};
 let pendingSavedState = null;
 let binderRendered = false;
 
@@ -1122,6 +1211,11 @@ const collectionProgressFillEl = document.getElementById("collectionProgressFill
 const setCurrentBtn = document.getElementById("setCurrentBtn");
 const caughtBtn = document.getElementById("caughtBtn");
 const resetProgressBtn = document.getElementById("resetProgressBtn");
+const encounterMinusBtn = document.getElementById("encounterMinusBtn");
+const encounterPlusBtn = document.getElementById("encounterPlusBtn");
+const resetEncounterBtn = document.getElementById("resetEncounterBtn");
+const encounterCountValueEl = document.getElementById("encounterCountValue");
+const encounterCountCaptionEl = document.getElementById("encounterCountCaption");
 const exportSaveBtn = document.getElementById("exportSaveBtn");
 const importSaveBtn = document.getElementById("importSaveBtn");
 const importSaveInput = document.getElementById("importSaveInput");
@@ -1673,6 +1767,44 @@ function safeIntegerArray(value) {
   )];
 }
 
+function safeEncounterCounts(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const result = {};
+
+  for (const [key, countValue] of Object.entries(value)) {
+    const speciesId = Number(key);
+    const count = Number(countValue);
+
+    if (
+      Number.isInteger(speciesId) &&
+      speciesId > 0 &&
+      speciesId < 10000 &&
+      Number.isInteger(count) &&
+      count >= 0 &&
+      count <= 100000000
+    ) {
+      result[String(speciesId)] = count;
+    }
+  }
+
+  return result;
+}
+
+function encounterCountFor(speciesId) {
+  const id = Number(speciesId);
+  return Number(encounterCounts[String(id)] || 0);
+}
+
+function setEncounterCount(speciesId, count) {
+  const id = Number(speciesId);
+  const next = Math.max(0, Math.min(100000000, Math.trunc(Number(count) || 0)));
+
+  encounterCounts[String(id)] = next;
+}
+
 function compactHistoryForSave() {
   return history
     .map(item => Number(item?.nationalDex))
@@ -1693,7 +1825,8 @@ function userSaveObject() {
     usedSpecies: [...usedSpecies].map(Number),
     rollHistory: compactHistoryForSave(),
     currentHunt: currentHuntSpeciesKey === null ? null : Number(currentHuntSpeciesKey),
-    caughtSpecies: [...caughtSpecies].map(Number)
+    caughtSpecies: [...caughtSpecies].map(Number),
+    encounterCounts: { ...encounterCounts }
   };
 }
 
@@ -1734,7 +1867,8 @@ function readSavedState() {
         Number.isInteger(Number(data.currentHunt)) && Number(data.currentHunt) > 0
           ? Number(data.currentHunt)
           : null,
-      caughtSpecies: safeIntegerArray(data.caughtSpecies)
+      caughtSpecies: safeIntegerArray(data.caughtSpecies),
+      encounterCounts: safeEncounterCounts(data.encounterCounts)
     };
   } catch (error) {
     console.error(error);
@@ -1775,6 +1909,14 @@ function applySavedStateAfterDataLoad(state) {
   caughtSpecies = new Set(
     state.caughtSpecies.filter(id => validSpecies.has(id))
   );
+
+  encounterCounts = {};
+  for (const [idText, count] of Object.entries(state.encounterCounts || {})) {
+    const id = Number(idText);
+    if (validSpecies.has(id)) {
+      encounterCounts[String(id)] = Number(count);
+    }
+  }
 
   history = state.rollHistory
     .map(id => pokemonByNationalDex(id))
@@ -1848,6 +1990,63 @@ function updateProgressUI() {
   }
 
   updateBinderUI();
+
+  updateEncounterTrackerUI();
+}
+
+function updateEncounterTrackerUI() {
+  const current = currentHuntSpeciesKey === null
+    ? null
+    : pokemonByNationalDex(currentHuntSpeciesKey);
+
+  const enabled = Boolean(current);
+  const count = enabled
+    ? encounterCountFor(current.nationalDex)
+    : 0;
+
+  encounterCountValueEl.textContent = String(count);
+  encounterCountCaptionEl.textContent = enabled
+    ? `${current.name} encounters`
+    : "No current hunt";
+
+  encounterMinusBtn.disabled = !enabled || count <= 0;
+  encounterPlusBtn.disabled = !enabled;
+  resetEncounterBtn.disabled = !enabled || count <= 0;
+}
+
+function changeEncounterCount(delta) {
+  if (currentHuntSpeciesKey === null) return;
+
+  const current = pokemonByNationalDex(currentHuntSpeciesKey);
+  if (!current) return;
+
+  const oldCount = encounterCountFor(current.nationalDex);
+  const nextCount = Math.max(0, oldCount + Number(delta || 0));
+
+  setEncounterCount(current.nationalDex, nextCount);
+  updateEncounterTrackerUI();
+  saveUserState();
+}
+
+function resetCurrentEncounterCount() {
+  if (currentHuntSpeciesKey === null) return;
+
+  const current = pokemonByNationalDex(currentHuntSpeciesKey);
+  if (!current) return;
+
+  const currentCount = encounterCountFor(current.nationalDex);
+
+  if (currentCount <= 0) return;
+
+  const confirmed = window.confirm(
+    `Reset ${current.name}'s encounter count from ${currentCount} back to 0?`
+  );
+
+  if (!confirmed) return;
+
+  setEncounterCount(current.nationalDex, 0);
+  updateEncounterTrackerUI();
+  saveUserState(`${current.name}'s encounter count was reset.`);
 }
 
 function setDisplayedAsCurrentHunt() {
@@ -1895,7 +2094,7 @@ function resetHuntProgress() {
 
   const confirmed = window.confirm(
     "Reset all hunt progress?\n\n" +
-    "This will clear every Pokémon marked as caught and remove your current hunt.\n\n" +
+    "This will clear every Pokémon marked as caught, remove your current hunt, and erase all encounter counts.\n\n" +
     "Your game selections, random-roll history, and Pokédex data will NOT be erased."
   );
 
@@ -1903,9 +2102,10 @@ function resetHuntProgress() {
 
   caughtSpecies.clear();
   currentHuntSpeciesKey = null;
+  encounterCounts = {};
 
   updateProgressUI();
-  saveUserState("Hunt progress reset. Caught Pokémon and current hunt were cleared.");
+  saveUserState("Hunt progress reset. Caught Pokémon, current hunt, and encounter counts were cleared.");
 }
 
 function exportUserSave() {
@@ -1954,7 +2154,8 @@ function validateImportedSave(data) {
       Number.isInteger(Number(data.currentHunt)) && Number(data.currentHunt) > 0
         ? Number(data.currentHunt)
         : null,
-    caughtSpecies: safeIntegerArray(data.caughtSpecies)
+    caughtSpecies: safeIntegerArray(data.caughtSpecies),
+    encounterCounts: safeEncounterCounts(data.encounterCounts)
   };
 }
 
@@ -2430,6 +2631,9 @@ resetBtn.addEventListener("click", resetRolls);
 setCurrentBtn.addEventListener("click", setDisplayedAsCurrentHunt);
 caughtBtn.addEventListener("click", toggleDisplayedCaught);
 resetProgressBtn.addEventListener("click", resetHuntProgress);
+encounterMinusBtn.addEventListener("click", () => changeEncounterCount(-1));
+encounterPlusBtn.addEventListener("click", () => changeEncounterCount(1));
+resetEncounterBtn.addEventListener("click", resetCurrentEncounterCount);
 exportSaveBtn.addEventListener("click", exportUserSave);
 importSaveBtn.addEventListener("click", () => importSaveInput.click());
 importSaveInput.addEventListener("change", () => {
