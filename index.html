@@ -264,6 +264,105 @@
     margin-bottom: 16px;
   }
 
+
+  .progress-panel {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin: 14px 0 16px;
+  }
+
+  .progress-top {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .progress-stat {
+    background: #111319;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+  }
+
+  .progress-label {
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+
+  .progress-value {
+    font-weight: 800;
+    line-height: 1.35;
+  }
+
+  .progress-bar {
+    height: 9px;
+    background: #111319;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 8px 0 12px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width .18s ease;
+  }
+
+  .progress-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .progress-actions button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  #setCurrentBtn {
+    background: var(--accent2);
+    color: #111319;
+    border: 0;
+  }
+
+  #caughtBtn.is-caught {
+    background: var(--accent);
+    color: #111319;
+    border: 0;
+  }
+
+  #resetProgressBtn {
+    color: var(--danger);
+    border-color: rgba(255, 123, 123, .55);
+  }
+
+  .save-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .save-message {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.4;
+    margin-top: 8px;
+  }
+
+  .save-message.error {
+    color: var(--danger);
+  }
+
   .manual-picker {
     background: var(--panel2);
     border: 1px solid var(--border);
@@ -344,6 +443,7 @@
     .sprite-compare { grid-template-columns: 1fr; }
     .manual-row { flex-direction: column; }
     #manualSelectBtn { width: 100%; }
+    .progress-top { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -395,6 +495,40 @@
     <button id="reloadBtn">Refresh Dex Data</button>
   </div>
 
+  <div class="section-title">Hunt Progress</div>
+  <div class="progress-panel">
+    <div class="progress-top">
+      <div class="progress-stat">
+        <div class="progress-label">Current hunt</div>
+        <div id="currentHuntValue" class="progress-value">None selected</div>
+      </div>
+      <div class="progress-stat">
+        <div class="progress-label">Collection progress</div>
+        <div id="collectionProgressValue" class="progress-value">0 / 0 caught</div>
+      </div>
+    </div>
+
+    <div class="progress-bar" aria-hidden="true">
+      <div id="collectionProgressFill" class="progress-fill"></div>
+    </div>
+
+    <div class="progress-actions">
+      <button id="setCurrentBtn" type="button" disabled>Set Displayed as Current Hunt</button>
+      <button id="caughtBtn" type="button" disabled>Mark Displayed as Caught</button>
+      <button id="resetProgressBtn" type="button">Reset Progress</button>
+    </div>
+
+    <div class="save-actions">
+      <button id="exportSaveBtn" type="button">Export Save</button>
+      <button id="importSaveBtn" type="button">Import Save</button>
+      <input id="importSaveInput" type="file" accept=".json,application/json" hidden>
+    </div>
+
+    <div id="saveMessage" class="save-message">
+      Progress is saved automatically in this browser.
+    </div>
+  </div>
+
   <div class="section-title">Include these games</div>
   <div id="dexGrid" class="dex-grid"></div>
 
@@ -431,7 +565,7 @@
   </div>
 
   <p class="note">
-    Randomizer by Blue<33 Currently supports Fire Red & Leaf Green, Brilliant Diamond & Shining Pearl, Let's Go Pikachu & Eevee, Sword & Shield, Scarlet & Violet, Legends: Arceus, and Legends: Z-A
+    Randomizer by Blue<33 I saw the need for a tool to help with Shiny Hunting and... here it is! I hope you enjoy it as much as I do! (Supported: All Mainline Switch Games)
   </p>
 </main>
 
@@ -490,6 +624,8 @@ const GAME_SOURCES = [
 ];
 
 const CACHE_KEY = "pokemonShinyRandomizerHuntableCache_v7";
+const SAVE_KEY = "pokemonShinyRandomizerUserSave_v1";
+const SAVE_FORMAT_VERSION = 1;
 const SHOWDOWN_SPRITE_BASE = "https://play.pokemonshowdown.com/sprites/ani/";
 const POKEMONDB_SHINY_SPRITE_BASE = "https://img.pokemondb.net/sprites/home/shiny/";
 
@@ -662,6 +798,10 @@ let masterPool = [];
 let gamePools = {};
 let usedSpecies = new Set();
 let history = [];
+let currentDisplayedPokemon = null;
+let currentHuntSpeciesKey = null;
+let caughtSpecies = new Set();
+let pendingSavedState = null;
 
 const statusEl = document.getElementById("status");
 const randomizeBtn = document.getElementById("randomizeBtn");
@@ -685,6 +825,16 @@ const manualMessageEl = document.getElementById("manualMessage");
 const spotSectionEl = document.getElementById("spotSection");
 const spotStatusEl = document.getElementById("spotStatus");
 const spotGridEl = document.getElementById("spotGrid");
+const currentHuntValueEl = document.getElementById("currentHuntValue");
+const collectionProgressValueEl = document.getElementById("collectionProgressValue");
+const collectionProgressFillEl = document.getElementById("collectionProgressFill");
+const setCurrentBtn = document.getElementById("setCurrentBtn");
+const caughtBtn = document.getElementById("caughtBtn");
+const resetProgressBtn = document.getElementById("resetProgressBtn");
+const exportSaveBtn = document.getElementById("exportSaveBtn");
+const importSaveBtn = document.getElementById("importSaveBtn");
+const importSaveInput = document.getElementById("importSaveInput");
+const saveMessageEl = document.getElementById("saveMessage");
 
 const SPECIAL_NAMES = {
   "nidoran-f": "Nidoran♀",
@@ -1095,6 +1245,330 @@ function huntMethodsForPokemon(pokemon) {
     .map(game => `${game.shortLabel}: ${huntMethodForGame(game.key, pokemon)}`);
 }
 
+
+function safeIntegerArray(value) {
+  if (!Array.isArray(value)) return [];
+
+  return [...new Set(
+    value
+      .map(Number)
+      .filter(Number.isInteger)
+      .filter(number => number > 0 && number < 10000)
+  )];
+}
+
+function compactHistoryForSave() {
+  return history
+    .map(item => Number(item?.nationalDex))
+    .filter(Number.isInteger)
+    .slice(-200);
+}
+
+function selectedGamesForSave() {
+  return [...selectedGameKeys()];
+}
+
+function userSaveObject() {
+  return {
+    formatVersion: SAVE_FORMAT_VERSION,
+    savedAt: new Date().toISOString(),
+    enabledGames: selectedGamesForSave(),
+    noRepeats: Boolean(noRepeatsEl.checked),
+    usedSpecies: [...usedSpecies].map(Number),
+    rollHistory: compactHistoryForSave(),
+    currentHunt: currentHuntSpeciesKey === null ? null : Number(currentHuntSpeciesKey),
+    caughtSpecies: [...caughtSpecies].map(Number)
+  };
+}
+
+function saveUserState(message = "") {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(userSaveObject()));
+
+    if (message) {
+      saveMessageEl.textContent = message;
+      saveMessageEl.classList.remove("error");
+    }
+  } catch (error) {
+    console.error(error);
+    saveMessageEl.textContent =
+      "Progress could not be saved in this browser. Export Save is recommended.";
+    saveMessageEl.classList.add("error");
+  }
+}
+
+function readSavedState() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+
+    const data = JSON.parse(raw);
+
+    if (!data || typeof data !== "object") return null;
+
+    return {
+      formatVersion: Number(data.formatVersion) || 1,
+      enabledGames: Array.isArray(data.enabledGames)
+        ? data.enabledGames.filter(key => GAME_SOURCES.some(game => game.key === key))
+        : [],
+      noRepeats: data.noRepeats !== false,
+      usedSpecies: safeIntegerArray(data.usedSpecies),
+      rollHistory: safeIntegerArray(data.rollHistory),
+      currentHunt:
+        Number.isInteger(Number(data.currentHunt)) && Number(data.currentHunt) > 0
+          ? Number(data.currentHunt)
+          : null,
+      caughtSpecies: safeIntegerArray(data.caughtSpecies)
+    };
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+function pokemonByNationalDex(nationalDex) {
+  return masterPool.find(
+    pokemon => Number(pokemon.nationalDex) === Number(nationalDex)
+  ) || null;
+}
+
+function applySavedStateAfterDataLoad(state) {
+  if (!state || !masterPool.length) {
+    updateProgressUI();
+    return;
+  }
+
+  const validSpecies = new Set(masterPool.map(p => Number(p.nationalDex)));
+
+  const enabled = new Set(state.enabledGames);
+  const checkboxes = [...document.querySelectorAll('input[data-game-key]')];
+
+  // Only replace defaults if the save actually contains a valid game selection.
+  if (enabled.size) {
+    for (const checkbox of checkboxes) {
+      checkbox.checked = enabled.has(checkbox.dataset.gameKey);
+    }
+  }
+
+  noRepeatsEl.checked = Boolean(state.noRepeats);
+
+  usedSpecies = new Set(
+    state.usedSpecies.filter(id => validSpecies.has(id))
+  );
+
+  caughtSpecies = new Set(
+    state.caughtSpecies.filter(id => validSpecies.has(id))
+  );
+
+  history = state.rollHistory
+    .map(id => pokemonByNationalDex(id))
+    .filter(Boolean);
+
+  currentHuntSpeciesKey =
+    state.currentHunt && validSpecies.has(state.currentHunt)
+      ? state.currentHunt
+      : null;
+
+  renderHistory();
+  updateManualPokemonList();
+  updateStatus("Saved progress restored.");
+  updateProgressUI();
+
+  if (currentHuntSpeciesKey !== null) {
+    const current = pokemonByNationalDex(currentHuntSpeciesKey);
+    if (current) {
+      displayPokemon(current);
+      manualPokemonInputEl.value = current.name;
+    }
+  }
+}
+
+function updateProgressUI() {
+  const total = masterPool.length;
+  const caughtCount = [...caughtSpecies]
+    .filter(id => masterPool.some(p => Number(p.nationalDex) === Number(id)))
+    .length;
+
+  const percent = total ? (caughtCount / total) * 100 : 0;
+
+  collectionProgressValueEl.textContent =
+    `${caughtCount} / ${total} caught`;
+
+  collectionProgressFillEl.style.width =
+    `${Math.max(0, Math.min(100, percent))}%`;
+
+  const current = currentHuntSpeciesKey === null
+    ? null
+    : pokemonByNationalDex(currentHuntSpeciesKey);
+
+  currentHuntValueEl.textContent =
+    current ? current.name : "None selected";
+
+  const displayed = currentDisplayedPokemon;
+  const hasDisplayed = Boolean(displayed);
+
+  setCurrentBtn.disabled = !hasDisplayed;
+  caughtBtn.disabled = !hasDisplayed;
+
+  if (hasDisplayed) {
+    const isCurrent =
+      Number(currentHuntSpeciesKey) === Number(displayed.nationalDex);
+
+    setCurrentBtn.textContent = isCurrent
+      ? "Current Hunt"
+      : "Set Displayed as Current Hunt";
+
+    const isCaught = caughtSpecies.has(Number(displayed.nationalDex));
+
+    caughtBtn.textContent = isCaught
+      ? "Caught ✓ — Click to Unmark"
+      : "Mark Displayed as Caught";
+
+    caughtBtn.classList.toggle("is-caught", isCaught);
+  } else {
+    setCurrentBtn.textContent = "Set Displayed as Current Hunt";
+    caughtBtn.textContent = "Mark Displayed as Caught";
+    caughtBtn.classList.remove("is-caught");
+  }
+}
+
+function setDisplayedAsCurrentHunt() {
+  if (!currentDisplayedPokemon) return;
+
+  currentHuntSpeciesKey = Number(currentDisplayedPokemon.nationalDex);
+  updateProgressUI();
+  saveUserState(`${currentDisplayedPokemon.name} set as your current hunt.`);
+}
+
+function toggleDisplayedCaught() {
+  if (!currentDisplayedPokemon) return;
+
+  const id = Number(currentDisplayedPokemon.nationalDex);
+  const wasCaught = caughtSpecies.has(id);
+
+  if (wasCaught) {
+    caughtSpecies.delete(id);
+  } else {
+    caughtSpecies.add(id);
+
+    if (Number(currentHuntSpeciesKey) === id) {
+      currentHuntSpeciesKey = null;
+    }
+  }
+
+  updateProgressUI();
+
+  saveUserState(
+    wasCaught
+      ? `${currentDisplayedPokemon.name} unmarked as caught.`
+      : `${currentDisplayedPokemon.name} marked as caught.`
+  );
+}
+
+function resetHuntProgress() {
+  const caughtCount = caughtSpecies.size;
+  const hadCurrentHunt = currentHuntSpeciesKey !== null;
+
+  if (!caughtCount && !hadCurrentHunt) {
+    saveMessageEl.textContent = "There is no hunt progress to reset.";
+    saveMessageEl.classList.remove("error");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Reset all hunt progress?\n\n" +
+    "This will clear every Pokémon marked as caught and remove your current hunt.\n\n" +
+    "Your game selections, random-roll history, and Pokédex data will NOT be erased."
+  );
+
+  if (!confirmed) return;
+
+  caughtSpecies.clear();
+  currentHuntSpeciesKey = null;
+
+  updateProgressUI();
+  saveUserState("Hunt progress reset. Caught Pokémon and current hunt were cleared.");
+}
+
+function exportUserSave() {
+  const data = userSaveObject();
+  const blob = new Blob(
+    [JSON.stringify(data, null, 2)],
+    { type: "application/json" }
+  );
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  const date = new Date().toISOString().slice(0, 10);
+
+  anchor.href = url;
+  anchor.download = `pokemon-shiny-randomizer-save-${date}.json`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  saveMessageEl.textContent = "Save exported.";
+  saveMessageEl.classList.remove("error");
+}
+
+function validateImportedSave(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("That file is not a valid randomizer save.");
+  }
+
+  const enabledGames = Array.isArray(data.enabledGames)
+    ? data.enabledGames.filter(key => GAME_SOURCES.some(game => game.key === key))
+    : [];
+
+  if (!enabledGames.length) {
+    throw new Error("The save does not contain any recognised game selections.");
+  }
+
+  return {
+    formatVersion: Number(data.formatVersion) || 1,
+    enabledGames,
+    noRepeats: data.noRepeats !== false,
+    usedSpecies: safeIntegerArray(data.usedSpecies),
+    rollHistory: safeIntegerArray(data.rollHistory),
+    currentHunt:
+      Number.isInteger(Number(data.currentHunt)) && Number(data.currentHunt) > 0
+        ? Number(data.currentHunt)
+        : null,
+    caughtSpecies: safeIntegerArray(data.caughtSpecies)
+  };
+}
+
+async function importUserSave(file) {
+  try {
+    if (!file) return;
+
+    if (file.size > 2_000_000) {
+      throw new Error("That save file is unexpectedly large.");
+    }
+
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const validated = validateImportedSave(parsed);
+
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      ...validated,
+      savedAt: new Date().toISOString()
+    }));
+
+    applySavedStateAfterDataLoad(validated);
+    saveUserState("Save imported successfully.");
+  } catch (error) {
+    console.error(error);
+    saveMessageEl.textContent =
+      error?.message || "That save file could not be imported.";
+    saveMessageEl.classList.add("error");
+  } finally {
+    importSaveInput.value = "";
+  }
+}
+
 function makeGameCheckboxes() {
   dexGrid.innerHTML = "";
 
@@ -1110,6 +1584,8 @@ function makeGameCheckboxes() {
   dexGrid.addEventListener("change", () => {
     updateStatus();
     updateManualPokemonList();
+    updateProgressUI();
+    saveUserState();
   });
 }
 
@@ -1314,6 +1790,7 @@ function findManualPokemon(rawValue) {
 }
 
 function displayPokemon(result) {
+  currentDisplayedPokemon = result;
   const selected = selectedGameKeys();
   const availableIn = GAME_SOURCES
     .filter(game => selected.has(game.key) && result.games.includes(game.key))
@@ -1332,6 +1809,7 @@ function displayPokemon(result) {
     `<strong>Hunting Method:</strong> ${methods.join(" • ")}`;
 
   loadPokemonLocations(result);
+  updateProgressUI();
 }
 
 function showManualPokemon() {
@@ -1400,6 +1878,7 @@ function rollPokemon() {
 
   renderHistory();
   updateStatus();
+  saveUserState();
 }
 
 function resetRolls() {
@@ -1418,6 +1897,8 @@ function resetRolls() {
   if (masterPool.length) {
     updateStatus("Roll history reset.");
   }
+
+  saveUserState("Random-roll history reset.");
 }
 
 async function loadDexData(forceRefresh = false) {
@@ -1434,6 +1915,14 @@ async function loadDexData(forceRefresh = false) {
           updateStatus("Loaded from local cache.");
           updateManualPokemonList();
           randomizeBtn.disabled = currentPool().length === 0;
+
+          if (pendingSavedState) {
+            applySavedStateAfterDataLoad(pendingSavedState);
+            pendingSavedState = null;
+          } else {
+            updateProgressUI();
+          }
+
           return;
         }
       }
@@ -1491,12 +1980,29 @@ async function loadDexData(forceRefresh = false) {
 
   randomizeBtn.disabled = currentPool().length === 0;
   updateManualPokemonList();
+
+  if (pendingSavedState) {
+    applySavedStateAfterDataLoad(pendingSavedState);
+    pendingSavedState = null;
+  } else {
+    updateProgressUI();
+  }
 }
 
 makeGameCheckboxes();
+pendingSavedState = readSavedState();
 
 randomizeBtn.addEventListener("click", rollPokemon);
 resetBtn.addEventListener("click", resetRolls);
+setCurrentBtn.addEventListener("click", setDisplayedAsCurrentHunt);
+caughtBtn.addEventListener("click", toggleDisplayedCaught);
+resetProgressBtn.addEventListener("click", resetHuntProgress);
+exportSaveBtn.addEventListener("click", exportUserSave);
+importSaveBtn.addEventListener("click", () => importSaveInput.click());
+importSaveInput.addEventListener("change", () => {
+  importUserSave(importSaveInput.files?.[0] || null);
+});
+noRepeatsEl.addEventListener("change", () => saveUserState());
 manualSelectBtn.addEventListener("click", showManualPokemon);
 manualPokemonInputEl.addEventListener("keydown", event => {
   if (event.key === "Enter") {
